@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="theme-color" content="#1a1a2e"/>
+  <title>Fruit Merge</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #1a1a2e;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      color: #fff;
+      padding: 12px 16px 32px;
+      user-select: none;
+      -webkit-user-select: none;
+      overflow-x: hidden;
+    }
+
+    h1 {
+      font-size: clamp(22px, 6vw, 34px);
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      background: linear-gradient(90deg, #ff6b6b, #ffd166, #06d6a0, #4cc9f0);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 10px;
+    }
+
+    .hud {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .hud-box {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 10px;
+      padding: 6px 18px;
+      text-align: center;
+      min-width: 76px;
+    }
+
+    .hud-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      opacity: 0.55;
+      margin-bottom: 1px;
+    }
+
+    .hud-value {
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    .layout {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+
+    canvas {
+      border-radius: 10px;
+      display: block;
+      cursor: crosshair;
+      touch-action: none;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      width: 80px;
+      flex-shrink: 0;
+    }
+
+    .side-box {
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px;
+      padding: 8px 6px;
+      text-align: center;
+    }
+
+    .side-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      opacity: 0.5;
+      margin-bottom: 4px;
+    }
+
+    .next-emoji { font-size: 28px; line-height: 1; }
+    .next-name  { font-size: 9px; opacity: 0.5; margin-top: 2px; }
+
+    .guide-row {
+      font-size: 11px;
+      line-height: 1.8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1px;
+    }
+
+    .hint {
+      margin-top: 10px;
+      font-size: 11px;
+      opacity: 0.4;
+      text-align: center;
+    }
+
+    @media (max-width: 420px) {
+      .sidebar { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<a href="index.html" style="position:fixed;top:12px;left:12px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#fff;text-decoration:none;padding:6px 14px;border-radius:8px;font-size:13px;font-weight:600;font-family:inherit;z-index:100;">← Games</a>
+<h1>🍉 Fruit Merge</h1>
+
+<div class="hud">
+  <div class="hud-box">
+    <div class="hud-label">Score</div>
+    <div class="hud-value" id="score">0</div>
+  </div>
+  <div class="hud-box">
+    <div class="hud-label">Best</div>
+    <div class="hud-value" id="best">0</div>
+  </div>
+</div>
+
+<div class="layout">
+  <canvas id="canvas"></canvas>
+
+  <div class="sidebar">
+    <div class="side-box">
+      <div class="side-label">Next</div>
+      <div class="next-emoji" id="next-emoji">🍒</div>
+      <div class="next-name" id="next-name">Cherry</div>
+    </div>
+    <div class="side-box">
+      <div class="side-label">Guide</div>
+      <div id="guide"></div>
+    </div>
+  </div>
+</div>
+
+<p class="hint">Click / tap to drop • Same fruits merge!</p>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+<script>
+// ── Fruit definitions ────────────────────────────────────────────────────────
+const FRUITS = [
+  { name:'Cherry',     r:17,  color:'#FF3B3B', light:'#FF9999', emoji:'🍒', pts:1  },
+  { name:'Strawberry', r:24,  color:'#FF5778', light:'#FFB3C6', emoji:'🍓', pts:3  },
+  { name:'Grape',      r:31,  color:'#8B5CF6', light:'#C4B5FD', emoji:'🍇', pts:6  },
+  { name:'Dekopon',    r:38,  color:'#F97316', light:'#FDBA74', emoji:'🍊', pts:10 },
+  { name:'Lemon',      r:45,  color:'#EAB308', light:'#FDE68A', emoji:'🍋', pts:15 },
+  { name:'Apple',      r:54,  color:'#EF4444', light:'#FCA5A5', emoji:'🍎', pts:21 },
+  { name:'Pear',       r:63,  color:'#84CC16', light:'#BEF264', emoji:'🍐', pts:28 },
+  { name:'Peach',      r:73,  color:'#FB923C', light:'#FED7AA', emoji:'🍑', pts:36 },
+  { name:'Pineapple',  r:83,  color:'#CA8A04', light:'#FDE68A', emoji:'🍍', pts:45 },
+  { name:'Melon',      r:95,  color:'#22C55E', light:'#86EFAC', emoji:'🍈', pts:55 },
+  { name:'Watermelon', r:110, color:'#16A34A', light:'#6EE7B7', emoji:'🍉', pts:66 },
+];
+
+// ── Canvas ───────────────────────────────────────────────────────────────────
+const canvas = document.getElementById('canvas');
+const ctx    = canvas.getContext('2d');
+const GW = 360, GH = 540;
+const DROP_Y = 44, DANGER_Y = 68;
+
+let scale = 1;
+function resize() {
+  const avail = Math.min(window.innerWidth - 120, 480);
+  scale = Math.min(avail / GW, 1.4);
+  canvas.width  = GW * scale;
+  canvas.height = GH * scale;
+  ctx.setTransform(scale, 0, 0, scale, 0, 0);
+}
+resize();
+window.addEventListener('resize', resize);
+
+// ── Matter.js ────────────────────────────────────────────────────────────────
+const { Engine, World, Bodies, Body, Events } = Matter;
+const engine = Engine.create({ gravity: { y: 2 } });
+const world  = engine.world;
+
+const STATIC = { isStatic: true, label: 'wall', friction: 0.4, restitution: 0.1 };
+World.add(world, [
+  Bodies.rectangle(GW/2, GH + 25, GW + 60, 50, STATIC),
+  Bodies.rectangle(-25,  GH/2, 50, GH*2, STATIC),
+  Bodies.rectangle(GW+25, GH/2, 50, GH*2, STATIC),
+]);
+
+// ── State ────────────────────────────────────────────────────────────────────
+let fruitMap    = new Map();   // id → { body, level, addedAt }
+let pendingMerge = [];
+let particles   = [];
+let score       = 0;
+let best        = +localStorage.getItem('fm-best') || 0;
+let nextLevel   = rndLevel();
+let dropX       = GW / 2;
+let canDrop     = true;
+let state       = 'playing';  // 'playing' | 'over'
+let overTimer   = 0;
+
+function rndLevel() { return Math.floor(Math.random() * 4); }
+
+// ── Collisions → queue merges ────────────────────────────────────────────────
+Events.on(engine, 'collisionStart', e => {
+  for (const { bodyA, bodyB } of e.pairs) {
+    const a = fruitMap.get(bodyA.id);
+    const b = fruitMap.get(bodyB.id);
+    if (!a || !b || a.level !== b.level || a.level >= FRUITS.length - 1) continue;
+    const key = Math.min(bodyA.id, bodyB.id) + ',' + Math.max(bodyA.id, bodyB.id);
+    if (!pendingMerge.find(p => p.key === key))
+      pendingMerge.push({ key, idA: bodyA.id, idB: bodyB.id });
+  }
+});
+
+// ── Process merges ────────────────────────────────────────────────────────────
+function processMerges() {
+  if (!pendingMerge.length) return;
+  const used = new Set();
+  for (const { idA, idB } of pendingMerge) {
+    if (used.has(idA) || used.has(idB)) continue;
+    const fa = fruitMap.get(idA), fb = fruitMap.get(idB);
+    if (!fa || !fb || fa.level !== fb.level) continue;
+
+    const mx = (fa.body.position.x + fb.body.position.x) / 2;
+    const my = (fa.body.position.y + fb.body.position.y) / 2;
+    const nl = fa.level + 1;
+
+    fruitMap.delete(idA); fruitMap.delete(idB);
+    World.remove(world, fa.body); World.remove(world, fb.body);
+    used.add(idA); used.add(idB);
+
+    score += FRUITS[nl].pts;
+    if (score > best) { best = score; localStorage.setItem('fm-best', best); }
+
+    burst(mx, my, FRUITS[nl].color);
+    addFruit(mx, Math.max(my, DANGER_Y + FRUITS[nl].r + 4), nl);
+  }
+  pendingMerge = [];
+}
+
+// ── Add fruit body ────────────────────────────────────────────────────────────
+function addFruit(x, y, level) {
+  const f = FRUITS[level];
+  const body = Bodies.circle(x, y, f.r, {
+    restitution: 0.25, friction: 0.5, frictionAir: 0.008,
+    density: 0.002, label: 'fruit',
+  });
+  fruitMap.set(body.id, { body, level, addedAt: Date.now() });
+  World.add(world, body);
+  return body;
+}
+
+// ── Drop ──────────────────────────────────────────────────────────────────────
+function drop(x) {
+  if (!canDrop || state !== 'playing') return;
+  canDrop = false;
+  const f = FRUITS[nextLevel];
+  x = Math.max(f.r + 4, Math.min(GW - f.r - 4, x));
+  addFruit(x, DROP_Y, nextLevel);
+  nextLevel = rndLevel();
+  updateNext();
+  setTimeout(() => { canDrop = true; }, 480);
+}
+
+// ── Particles ─────────────────────────────────────────────────────────────────
+function burst(x, y, color) {
+  for (let i = 0; i < 10; i++) {
+    const a = (i / 10) * Math.PI * 2 + Math.random() * 0.3;
+    const s = 2.5 + Math.random() * 3;
+    particles.push({ x, y, vx: Math.cos(a)*s, vy: Math.sin(a)*s - 1,
+      r: 3 + Math.random()*4, color, life: 1, decay: 0.05 + Math.random()*0.04 });
+  }
+}
+
+function tickParticles() {
+  for (let i = particles.length-1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx; p.y += p.vy; p.vy += 0.25;
+    p.life -= p.decay;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+}
+
+// ── Game-over check ───────────────────────────────────────────────────────────
+function checkOver() {
+  for (const [, { body, level, addedAt }] of fruitMap) {
+    if (Date.now() - addedAt > 900 &&
+        body.position.y - FRUITS[level].r < DANGER_Y &&
+        Math.abs(body.velocity.y) < 2) {
+      overTimer++;
+      if (overTimer > 40) { state = 'over'; }
+      return;
+    }
+  }
+  overTimer = 0;
+}
+
+// ── Draw ──────────────────────────────────────────────────────────────────────
+function draw() {
+  ctx.clearRect(0, 0, GW, GH);
+
+  // Background gradient
+  const bg = ctx.createLinearGradient(0, 0, 0, GH);
+  bg.addColorStop(0, '#16213e'); bg.addColorStop(1, '#0f3460');
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, GW, GH);
+
+  // Danger dashed line
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,80,80,0.55)'; ctx.lineWidth = 1.5;
+  ctx.setLineDash([6,5]);
+  ctx.beginPath(); ctx.moveTo(0, DANGER_Y); ctx.lineTo(GW, DANGER_Y); ctx.stroke();
+  ctx.setLineDash([]); ctx.restore();
+
+  // Walls (subtle)
+  ctx.fillStyle = 'rgba(255,255,255,0.12)';
+  ctx.fillRect(0, DANGER_Y, 3, GH - DANGER_Y);
+  ctx.fillRect(GW-3, DANGER_Y, 3, GH - DANGER_Y);
+  ctx.fillRect(0, GH-3, GW, 3);
+
+  // Drop guide
+  if (canDrop && state === 'playing') {
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)'; ctx.lineWidth = 1;
+    ctx.setLineDash([3,5]);
+    ctx.beginPath(); ctx.moveTo(dropX, DROP_Y + FRUITS[nextLevel].r);
+    ctx.lineTo(dropX, GH); ctx.stroke();
+    ctx.setLineDash([]); ctx.restore();
+  }
+
+  // Fruits
+  for (const [, { body, level }] of fruitMap) {
+    const f = FRUITS[level];
+    const { x, y } = body.position;
+    ctx.save();
+    ctx.translate(x, y); ctx.rotate(body.angle);
+
+    // Glow
+    ctx.shadowColor = f.color; ctx.shadowBlur = 10;
+
+    // Radial gradient
+    const gr = ctx.createRadialGradient(-f.r*.3, -f.r*.3, f.r*.05, 0, 0, f.r);
+    gr.addColorStop(0, f.light); gr.addColorStop(1, f.color);
+    ctx.beginPath(); ctx.arc(0, 0, f.r, 0, Math.PI*2);
+    ctx.fillStyle = gr; ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.lineWidth = 1.5; ctx.stroke();
+
+    // Emoji
+    ctx.font = `${f.r * 1.15}px serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.shadowColor = 'rgba(0,0,0,0.4)'; ctx.shadowBlur = 4;
+    ctx.fillStyle = '#fff'; ctx.fillText(f.emoji, 0, 1);
+    ctx.shadowBlur = 0;
+
+    ctx.restore();
+  }
+
+  // Next-fruit ghost at drop position
+  if (canDrop && state === 'playing') {
+    const f = FRUITS[nextLevel];
+    ctx.save(); ctx.globalAlpha = 0.55;
+    ctx.translate(dropX, DROP_Y);
+    const gr = ctx.createRadialGradient(-f.r*.3, -f.r*.3, f.r*.05, 0, 0, f.r);
+    gr.addColorStop(0, f.light); gr.addColorStop(1, f.color);
+    ctx.beginPath(); ctx.arc(0, 0, f.r, 0, Math.PI*2);
+    ctx.fillStyle = gr; ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.font = `${f.r * 1.15}px serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#fff'; ctx.fillText(f.emoji, 0, 1);
+    ctx.restore();
+  }
+
+  // Particles
+  for (const p of particles) {
+    ctx.save(); ctx.globalAlpha = p.life;
+    ctx.fillStyle = p.color;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+
+  // Game-over overlay (drawn on canvas)
+  if (state === 'over') drawOver();
+}
+
+function rrect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x+r, y);
+  ctx.lineTo(x+w-r, y); ctx.arcTo(x+w, y, x+w, y+r, r);
+  ctx.lineTo(x+w, y+h-r); ctx.arcTo(x+w, y+h, x+w-r, y+h, r);
+  ctx.lineTo(x+r, y+h); ctx.arcTo(x, y+h, x, y+h-r, r);
+  ctx.lineTo(x, y+r); ctx.arcTo(x, y, x+r, y, r);
+  ctx.closePath();
+}
+
+function drawOver() {
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,0.78)'; ctx.fillRect(0, 0, GW, GH);
+
+  const cx = GW/2, cy = GH/2;
+  ctx.fillStyle = '#16213e';
+  rrect(cx-130, cy-120, 260, 240, 18); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.12)'; ctx.lineWidth = 1; ctx.stroke();
+
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.font = 'bold 38px system-ui'; ctx.fillStyle = '#fff';
+  ctx.fillText('Game Over', cx, cy - 72);
+
+  ctx.font = '18px system-ui'; ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  ctx.fillText(`Score: ${score}`, cx, cy - 36);
+  ctx.font = '14px system-ui'; ctx.fillStyle = 'rgba(255,255,255,0.4)';
+  ctx.fillText(`Best: ${best}`, cx, cy - 10);
+
+  // Button
+  const bx = cx-80, by = cy+18, bw = 160, bh = 46;
+  const bg = ctx.createLinearGradient(bx, by, bx+bw, by+bh);
+  bg.addColorStop(0, '#ff6b6b'); bg.addColorStop(1, '#ffd166');
+  ctx.fillStyle = bg;
+  rrect(bx, by, bw, bh, 23); ctx.fill();
+  ctx.font = 'bold 17px system-ui'; ctx.fillStyle = '#1a1a2e';
+  ctx.fillText('Play Again', cx, by + bh/2 + 1);
+
+  ctx.restore();
+}
+
+// ── Main loop ─────────────────────────────────────────────────────────────────
+let last = 0;
+function loop(ts) {
+  const dt = Math.min(ts - last, 50);
+  last = ts;
+
+  processMerges();
+  Engine.update(engine, dt || 16);
+  tickParticles();
+  if (state === 'playing') checkOver();
+  draw();
+
+  document.getElementById('score').textContent = score;
+  document.getElementById('best').textContent = Math.max(score, best);
+
+  requestAnimationFrame(loop);
+}
+
+// ── Input ─────────────────────────────────────────────────────────────────────
+function gameX(clientX) {
+  return (clientX - canvas.getBoundingClientRect().left) / scale;
+}
+function gameY(clientY) {
+  return (clientY - canvas.getBoundingClientRect().top) / scale;
+}
+
+canvas.addEventListener('mousemove', e => {
+  if (state === 'playing') dropX = Math.max(20, Math.min(GW-20, gameX(e.clientX)));
+});
+
+canvas.addEventListener('click', e => {
+  const gx = gameX(e.clientX), gy = gameY(e.clientY);
+  if (state === 'playing') {
+    drop(gx);
+  } else if (state === 'over') {
+    const cx = GW/2, cy = GH/2;
+    if (gx > cx-80 && gx < cx+80 && gy > cy+18 && gy < cy+64) restart();
+  }
+});
+
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault();
+  if (state === 'playing') dropX = Math.max(20, Math.min(GW-20, gameX(e.touches[0].clientX)));
+}, { passive: false });
+
+canvas.addEventListener('touchend', e => {
+  e.preventDefault();
+  const gx = gameX(e.changedTouches[0].clientX);
+  const gy = gameY(e.changedTouches[0].clientY);
+  if (state === 'playing') {
+    drop(gx);
+  } else if (state === 'over') {
+    const cx = GW/2, cy = GH/2;
+    if (gx > cx-80 && gx < cx+80 && gy > cy+18 && gy < cy+64) restart();
+  }
+}, { passive: false });
+
+// ── Restart ───────────────────────────────────────────────────────────────────
+function restart() {
+  for (const [, { body }] of fruitMap) World.remove(world, body);
+  fruitMap.clear(); pendingMerge = []; particles = [];
+  score = 0; nextLevel = rndLevel(); dropX = GW/2;
+  canDrop = true; state = 'playing'; overTimer = 0;
+  updateNext();
+}
+
+// ── Sidebar ───────────────────────────────────────────────────────────────────
+function updateNext() {
+  const f = FRUITS[nextLevel];
+  document.getElementById('next-emoji').textContent = f.emoji;
+  document.getElementById('next-name').textContent  = f.name;
+}
+
+const guide = document.getElementById('guide');
+FRUITS.slice(0, -1).forEach((f, i) => {
+  const d = document.createElement('div');
+  d.className = 'guide-row';
+  d.innerHTML = `<span>${f.emoji}</span><span style="opacity:.4;font-size:9px">+</span><span>${f.emoji}</span><span style="opacity:.4;font-size:9px">→</span><span>${FRUITS[i+1].emoji}</span>`;
+  guide.appendChild(d);
+});
+
+// ── Start ─────────────────────────────────────────────────────────────────────
+document.getElementById('best').textContent = best;
+updateNext();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
