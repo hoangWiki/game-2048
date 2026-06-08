@@ -31,85 +31,71 @@
     .sub {
       font-size: 14px;
       opacity: 0.45;
-      margin-bottom: 36px;
+      margin-bottom: 32px;
       text-align: center;
       letter-spacing: 0.5px;
     }
     .grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 20px;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
       width: 100%;
-      max-width: 600px;
+      max-width: 560px;
     }
     .card {
       background: linear-gradient(135deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
       border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 20px;
-      padding: 28px 24px;
+      border-radius: 18px;
+      padding: 24px 20px;
       text-decoration: none;
       color: #fff;
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 8px;
       transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
       cursor: pointer;
       position: relative;
       overflow: hidden;
     }
-    .card::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      opacity: 0;
-      transition: opacity 0.2s;
-    }
     .card:hover { transform: translateY(-4px); box-shadow: 0 20px 40px rgba(0,0,0,0.4); }
-    .card.fruit:hover  { border-color: rgba(76,201,240,0.5); box-shadow: 0 20px 40px rgba(76,201,240,0.15); }
-    .card.dino:hover   { border-color: rgba(74,222,128,0.5); box-shadow: 0 20px 40px rgba(74,222,128,0.15); }
-    .card.retro:hover  { border-color: rgba(251,191,36,0.5); box-shadow: 0 20px 40px rgba(251,191,36,0.15); }
 
-    .card-icon { font-size: 52px; line-height: 1; }
-    .card-title {
-      font-size: 22px;
-      font-weight: 800;
-      letter-spacing: -0.3px;
-    }
+    .card.fruit:hover  { border-color: rgba(76,201,240,0.5);  box-shadow: 0 20px 40px rgba(76,201,240,0.15); }
+    .card.retro:hover  { border-color: rgba(251,191,36,0.5);  box-shadow: 0 20px 40px rgba(251,191,36,0.15); }
+    .card.stack:hover  { border-color: rgba(167,139,250,0.5); box-shadow: 0 20px 40px rgba(167,139,250,0.15); }
+    .card.gem:hover    { border-color: rgba(244,114,182,0.5); box-shadow: 0 20px 40px rgba(244,114,182,0.15); }
+    .card.sort:hover   { border-color: rgba(74,222,128,0.5);  box-shadow: 0 20px 40px rgba(74,222,128,0.15); }
+
+    .card-icon { font-size: 46px; line-height: 1; }
+    .card-title { font-size: 20px; font-weight: 800; letter-spacing: -0.3px; }
+
     .card.fruit .card-title { color: #4cc9f0; }
-    .card.dino  .card-title { color: #4ade80; }
     .card.retro .card-title { color: #fbbf24; }
+    .card.stack .card-title { color: #a78bfa; }
+    .card.gem   .card-title { color: #f472b6; }
+    .card.sort  .card-title { color: #4ade80; }
 
-    .card-desc {
-      font-size: 13px;
-      opacity: 0.55;
-      line-height: 1.6;
-    }
+    .card-desc { font-size: 12px; opacity: 0.52; line-height: 1.6; }
     .card-tag {
       display: inline-block;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.5px;
-      padding: 3px 10px;
-      border-radius: 20px;
-      margin-top: 4px;
-      width: fit-content;
+      font-size: 10px; font-weight: 700; letter-spacing: 0.5px;
+      padding: 2px 9px; border-radius: 20px; margin-top: 2px; width: fit-content;
     }
-    .card.fruit .card-tag { background: rgba(76,201,240,0.15); color: #4cc9f0; }
-    .card.dino  .card-tag { background: rgba(74,222,128,0.15); color: #4ade80; }
-    .card.retro .card-tag { background: rgba(251,191,36,0.15); color: #fbbf24; }
+    .card.fruit .card-tag { background: rgba(76,201,240,0.15);  color: #4cc9f0; }
+    .card.retro .card-tag { background: rgba(251,191,36,0.15);  color: #fbbf24; }
+    .card.stack .card-tag { background: rgba(167,139,250,0.15); color: #a78bfa; }
+    .card.gem   .card-tag { background: rgba(244,114,182,0.15); color: #f472b6; }
+    .card.sort  .card-tag { background: rgba(74,222,128,0.15);  color: #4ade80; }
 
     .play-btn {
-      margin-top: 8px;
-      padding: 10px 0;
-      border-radius: 12px;
-      font-size: 14px;
-      font-weight: 700;
-      text-align: center;
-      letter-spacing: 0.3px;
+      margin-top: 6px; padding: 9px 0;
+      border-radius: 10px; font-size: 13px;
+      font-weight: 700; text-align: center; letter-spacing: 0.3px;
     }
-    .card.fruit .play-btn { background: rgba(76,201,240,0.15); color: #4cc9f0; }
-    .card.dino  .play-btn { background: rgba(74,222,128,0.15); color: #4ade80; }
-    .card.retro .play-btn { background: rgba(251,191,36,0.15); color: #fbbf24; }
+    .card.fruit .play-btn { background: rgba(76,201,240,0.15);  color: #4cc9f0; }
+    .card.retro .play-btn { background: rgba(251,191,36,0.15);  color: #fbbf24; }
+    .card.stack .play-btn { background: rgba(167,139,250,0.15); color: #a78bfa; }
+    .card.gem   .play-btn { background: rgba(244,114,182,0.15); color: #f472b6; }
+    .card.sort  .play-btn { background: rgba(74,222,128,0.15);  color: #4ade80; }
     .card:hover .play-btn { filter: brightness(1.3); }
   </style>
 </head>
@@ -121,15 +107,31 @@
     <a class="card fruit" href="fruit-merge.html">
       <div class="card-icon">🍉</div>
       <div class="card-title">Fruit Merge</div>
-      <div class="card-desc">Drop fruits and merge identical ones to create bigger fruits. Reach the Watermelon to win!</div>
+      <div class="card-desc">Drop fruits and merge identical ones into bigger fruits. Reach the Watermelon!</div>
       <div class="card-tag">PHYSICS · TRENDING</div>
       <div class="play-btn">▶ Play Now</div>
     </a>
 
-    <a class="card dino" href="dino.html">
-      <div class="card-icon">🦖</div>
-      <div class="card-title">Dino Escape</div>
-      <div class="card-desc">A dinosaur is nailed down by metal bolts. Pull them out in the right order to set it free!</div>
+    <a class="card gem" href="gem-blast.html">
+      <div class="card-icon">💎</div>
+      <div class="card-title">Gem Blast</div>
+      <div class="card-desc">Tap groups of matching gems to blast them. Clear the target before moves run out!</div>
+      <div class="card-tag">BLAST · 5 LEVELS</div>
+      <div class="play-btn">▶ Play Now</div>
+    </a>
+
+    <a class="card stack" href="stack.html">
+      <div class="card-icon">📦</div>
+      <div class="card-title">Stack</div>
+      <div class="card-desc">Drop blocks to build the tallest tower. Miss the edge and it gets trimmed!</div>
+      <div class="card-tag">REFLEX · ENDLESS</div>
+      <div class="play-btn">▶ Play Now</div>
+    </a>
+
+    <a class="card sort" href="color-sort.html">
+      <div class="card-icon">🧪</div>
+      <div class="card-title">Color Sort</div>
+      <div class="card-desc">Sort the colored balls into tubes so each tube holds only one color.</div>
       <div class="card-tag">PUZZLE · 5 LEVELS</div>
       <div class="play-btn">▶ Play Now</div>
     </a>

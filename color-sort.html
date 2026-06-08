@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="theme-color" content="#12111f"/>
+<title>Color Sort</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:#12111f;min-height:100vh;display:flex;flex-direction:column;align-items:center;
+  font-family:'Segoe UI',system-ui,sans-serif;color:#fff;padding:8px 12px 32px;
+  user-select:none;-webkit-user-select:none}
+a.back{position:fixed;top:12px;left:12px;background:rgba(255,255,255,.1);
+  border:1px solid rgba(255,255,255,.2);color:#fff;text-decoration:none;
+  padding:6px 14px;border-radius:8px;font-size:13px;font-weight:600;z-index:100}
+h1{font-size:clamp(20px,5vw,26px);font-weight:800;
+  background:linear-gradient(90deg,#f97316,#fbbf24,#4ade80,#4cc9f0);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  margin:2px 0 6px}
+.topbar{display:flex;align-items:center;gap:12px;margin-bottom:8px;width:100%;
+  max-width:400px;justify-content:space-between}
+.badge{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);
+  border-radius:20px;padding:4px 14px;font-size:13px;font-weight:600}
+.rbtn{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);
+  color:#fff;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:600;
+  cursor:pointer;font-family:inherit}
+.rbtn:hover{background:rgba(255,255,255,.15)}
+canvas{border-radius:16px;display:block;cursor:pointer;touch-action:none;
+  border:1px solid rgba(255,255,255,.07)}
+.hint{margin-top:10px;font-size:12px;opacity:.38;text-align:center}
+</style>
+</head>
+<body>
+<a class="back" href="index.html">← Games</a>
+<h1>🧪 Color Sort</h1>
+<div class="topbar">
+  <span class="badge" id="lvl-badge">Level 1 / 5</span>
+  <button class="rbtn" id="restart">↺ Restart</button>
+</div>
+<canvas id="canvas"></canvas>
+<p class="hint">Tap a tube to select, tap another to pour!</p>
+<script>
+const canvas=document.getElementById('canvas');
+const ctx=canvas.getContext('2d');
+const CW=380,CH=500;
+let scale=1;
+function resize(){
+  const a=Math.min(window.innerWidth-24,440);
+  scale=Math.min(a/CW,1.35);
+  canvas.width=CW*scale;canvas.height=CH*scale;
+  ctx.setTransform(scale,0,0,scale,0,0);
+}
+resize();window.addEventListener('resize',resize);
+
+// Tube dims
+const CAP=4; // balls per tube
+const BR=18;  // ball radius
+const TW=BR*2+12; // tube inner width
+const TH=CAP*BR*2+12; // tube inner height
+const WALL=6;
+
+// Level definitions: [numTubes, numColors, numEmpty]
+const LEVEL_CFG=[
+  {tubes:5, colors:3, empty:2},
+  {tubes:6, colors:4, empty:2},
+  {tubes:7, colors:5, empty:2},
+  {tubes:8, colors:6, empty:2},
+  {tubes:9, colors:7, empty:2},
+];
+
+const PALETTE=['#ff6b6b','#4ade80','#4cc9f0','#ffd166','#f472b6','#a78bfa','#fb923c'];
+
+let tubes,selected,level,phase,moves,pours;
+
+function shuffle(arr){for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];}return arr;}
+
+function initLevel(lv){
+  level=lv%LEVEL_CFG.length;
+  const{tubes:nTubes,colors:nColors,empty:nEmpty}=LEVEL_CFG[level];
+  document.getElementById('lvl-badge').textContent=`Level ${level+1} / 5`;
+  // Create ball pool: nColors colors × CAP each
+  const pool=[];
+  for(let c=0;c<nColors;c++)for(let i=0;i<CAP;i++)pool.push(c);
+  shuffle(pool);
+  const filledCount=nTubes-nEmpty;
+  // Distribute into tubes (each tube gets CAP balls)
+  tubes=[];
+  for(let i=0;i<filledCount;i++){
+    tubes.push({balls:pool.slice(i*CAP,(i+1)*CAP),liftY:0});
+  }
+  for(let i=0;i<nEmpty;i++)tubes.push({balls:[],liftY:0});
+  shuffle(tubes);
+  selected=null;phase='play';moves=0;pours=0;
+}
+
+function topColor(tube){return tube.balls.length>0?tube.balls[tube.balls.length-1]:null;}
+function topCount(tube){
+  if(!tube.balls.length)return 0;
+  const c=topColor(tube);let n=0;
+  for(let i=tube.balls.length-1;i>=0&&tube.balls[i]===c;i--)n++;
+  return n;
+}
+function isSolved(tube){
+  if(tube.balls.length===0)return true;
+  if(tube.balls.length!==CAP)return false;
+  return tube.balls.every(b=>b===tube.balls[0]);
+}
+function checkWin(){return tubes.every(t=>isSolved(t));}
+
+function canPour(from,to){
+  if(from===to)return false;
+  if(!from.balls.length)return false;
+  if(to.balls.length>=CAP)return false;
+  if(!to.balls.length)return true;
+  return topColor(from)===topColor(to);
+}
+
+function pour(fromIdx,toIdx){
+  const from=tubes[fromIdx],to=tubes[toIdx];
+  if(!canPour(from,to))return false;
+  const color=topColor(from);
+  let count=topCount(from);
+  const space=CAP-to.balls.length;
+  count=Math.min(count,space);
+  for(let i=0;i<count;i++){from.balls.pop();to.balls.push(color);}
+  pours++;
+  return true;
+}
+
+// Tube layout calculation
+function tubeLayout(){
+  const n=tubes.length;
+  const cols=Math.ceil(n/2), rows=n<=cols?1:2;
+  const totalW=cols*(TW+WALL*2+14), gap=(CW-totalW)/(cols+1);
+  const row1Count=Math.ceil(n/2), row2Count=Math.floor(n/2);
+  const positions=[];
+  const y1=110,y2=310;
+  for(let i=0;i<row1Count;i++){
+    const totalRow1W=row1Count*(TW+WALL*2+14)+(row1Count-1)*gap;
+    const startX=(CW-totalRow1W)/2;
+    positions.push({x:startX+i*(TW+WALL*2+14+gap)+WALL,y:y1});
+  }
+  for(let i=0;i<row2Count;i++){
+    const totalRow2W=row2Count*(TW+WALL*2+14)+(row2Count-1)*gap;
+    const startX=(CW-totalRow2W)/2;
+    positions.push({x:startX+i*(TW+WALL*2+14+gap)+WALL,y:y2});
+  }
+  return positions;
+}
+
+function drawTube(tx,ty,tube,idx,pos){
+  ctx.save();
+  const lift=tube.liftY||0;
+  ctx.translate(tx,ty-lift);
+  const isSelected=idx===selected;
+  // Outer tube glass
+  const ow=TW+WALL*2,oh=TH+WALL+WALL/2+4;
+  // Glow if selected
+  if(isSelected){ctx.shadowColor='#fbbf24';ctx.shadowBlur=18;}
+  // Tube body (rounded bottom, open top)
+  ctx.beginPath();
+  ctx.moveTo(0,0);
+  ctx.lineTo(0,oh-12);ctx.arcTo(0,oh,12,oh,12);
+  ctx.lineTo(ow-12,oh);ctx.arcTo(ow,oh,ow,oh-12,12);
+  ctx.lineTo(ow,0);
+  ctx.fillStyle='rgba(255,255,255,.07)';ctx.fill();
+  ctx.strokeStyle=isSelected?'rgba(251,191,36,.7)':'rgba(255,255,255,.2)';
+  ctx.lineWidth=WALL;ctx.stroke();
+  ctx.shadowBlur=0;
+  // Clip balls inside
+  ctx.beginPath();
+  ctx.rect(WALL,0,TW,TH+WALL);ctx.clip();
+  // Balls (bottom to top, last in array = top)
+  for(let i=0;i<tube.balls.length;i++){
+    const bx=WALL+TW/2;
+    const by=TH+WALL-(i+1)*BR*2+BR;
+    const color=PALETTE[tube.balls[i]];
+    ctx.shadowColor='rgba(0,0,0,.3)';ctx.shadowBlur=6;
+    ctx.beginPath();ctx.arc(bx,by,BR-1,0,Math.PI*2);
+    ctx.fillStyle=color;ctx.fill();
+    ctx.shadowBlur=0;
+    // Shine
+    const sg=ctx.createRadialGradient(bx-BR*.3,by-BR*.3,BR*.05,bx,by,BR);
+    sg.addColorStop(0,'rgba(255,255,255,.5)');sg.addColorStop(.6,'rgba(255,255,255,.08)');sg.addColorStop(1,'rgba(0,0,0,.25)');
+    ctx.beginPath();ctx.arc(bx,by,BR-1,0,Math.PI*2);
+    ctx.fillStyle=sg;ctx.fill();
+  }
+  ctx.restore();
+}
+
+function draw(){
+  const bg=ctx.createLinearGradient(0,0,0,CH);
+  bg.addColorStop(0,'#12111f');bg.addColorStop(1,'#1a192e');
+  ctx.fillStyle=bg;ctx.fillRect(0,0,CW,CH);
+  ctx.strokeStyle='rgba(255,255,255,.03)';ctx.lineWidth=1;
+  for(let y=0;y<CH;y+=44){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(CW,y);ctx.stroke();}
+
+  // HUD
+  ctx.textAlign='right';ctx.textBaseline='top';
+  ctx.font='13px system-ui';ctx.fillStyle='rgba(255,255,255,.4)';
+  ctx.fillText(`Pours: ${pours}`,CW-12,12);
+
+  const positions=tubeLayout();
+  tubes.forEach((tube,i)=>{
+    const{x,y}=positions[i];
+    drawTube(x,y,tube,i,positions[i]);
+  });
+
+  if(phase==='win'){
+    ctx.fillStyle='rgba(0,0,0,.65)';ctx.fillRect(0,0,CW,CH);
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.font='bold 36px system-ui';ctx.fillStyle='#4ade80';
+    ctx.shadowColor='#4ade80';ctx.shadowBlur=20;ctx.fillText('🎉 Sorted!',CW/2,CH/2-55);ctx.shadowBlur=0;
+    const last=level>=LEVEL_CFG.length-1;
+    ctx.font='15px system-ui';ctx.fillStyle='rgba(255,255,255,.6)';
+    ctx.fillText(last?'🏆 All levels complete!':(`Level ${level+1} done in ${pours} pours`),CW/2,CH/2-15);
+    // Button
+    const bx=CW/2-70,by=CH/2+8,bw=140,bh=44;
+    rr(bx,by,bw,bh,22);
+    const bg2=ctx.createLinearGradient(bx,0,bx+bw,0);
+    bg2.addColorStop(0,'#4ade80');bg2.addColorStop(1,'#22d3ee');
+    ctx.fillStyle=bg2;ctx.fill();
+    ctx.font='bold 15px system-ui';ctx.fillStyle='#0a1f0a';
+    ctx.fillText(last?'▶ Play Again':'▶ Next Level',CW/2,by+22+1);
+  }
+}
+
+function rr(x,y,w,h,r){
+  ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.arcTo(x+w,y,x+w,y+r,r);
+  ctx.lineTo(x+w,y+h-r);ctx.arcTo(x+w,y+h,x+w-r,y+h,r);
+  ctx.lineTo(x+r,y+h);ctx.arcTo(x,y+h,x,y+h-r,r);
+  ctx.lineTo(x,y+r);ctx.arcTo(x,y,x+r,y,r);ctx.closePath();
+}
+
+function liftTube(idx,val){
+  if(tubes[idx])tubes[idx].liftY=val;
+}
+
+function tubeIdxAt(gx,gy){
+  const positions=tubeLayout();
+  for(let i=0;i<tubes.length;i++){
+    const{x,y}=positions[i];
+    const lift=tubes[i].liftY||0;
+    const ty=y-lift;
+    const ow=TW+WALL*2,oh=TH+WALL*2+4;
+    if(gx>=x&&gx<=x+ow&&gy>=ty-20&&gy<=ty+oh)return i;
+  }
+  return-1;
+}
+
+function handleTap(gx,gy){
+  if(phase==='win'){
+    const bx=CW/2-70,by=CH/2+8,bw=140,bh=44;
+    if(gx>bx&&gx<bx+bw&&gy>by&&gy<by+bh){
+      initLevel(level>=LEVEL_CFG.length-1?0:level+1);
+    }
+    return;
+  }
+  const idx=tubeIdxAt(gx,gy);
+  if(idx<0){
+    if(selected!=null)liftTube(selected,0);
+    selected=null;return;
+  }
+  if(selected===null){
+    if(tubes[idx].balls.length>0){
+      selected=idx;liftTube(idx,28);
+    }
+    return;
+  }
+  if(idx===selected){
+    liftTube(selected,0);selected=null;return;
+  }
+  if(canPour(tubes[selected],tubes[idx])){
+    liftTube(selected,0);
+    pour(selected,idx);
+    selected=null;
+    if(checkWin())phase='win';
+  } else {
+    liftTube(selected,0);
+    selected=null;
+    if(tubes[idx].balls.length>0){
+      selected=idx;liftTube(idx,28);
+    }
+  }
+}
+
+function loop(){draw();requestAnimationFrame(loop);}
+
+canvas.addEventListener('click',e=>{
+  const r=canvas.getBoundingClientRect();
+  handleTap((e.clientX-r.left)/scale,(e.clientY-r.top)/scale);
+});
+canvas.addEventListener('touchend',e=>{
+  e.preventDefault();
+  const r=canvas.getBoundingClientRect();
+  handleTap((e.changedTouches[0].clientX-r.left)/scale,(e.changedTouches[0].clientY-r.top)/scale);
+},{passive:false});
+document.getElementById('restart').addEventListener('click',()=>initLevel(level));
+
+initLevel(0);loop();
+</script>
+</body>
+</html>
