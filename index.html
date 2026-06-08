@@ -213,12 +213,45 @@
 
     /* ── Instructions ── */
     .instructions {
-      margin-top: 20px;
+      margin-top: 12px;
       font-size: 14px;
       text-align: center;
       max-width: 480px;
       line-height: 1.7;
     }
+
+    /* ── D-pad ── */
+    .dpad {
+      display: grid;
+      grid-template-areas: ". up ." "left . right" ". down .";
+      grid-template-columns: repeat(3, 60px);
+      grid-template-rows: repeat(3, 60px);
+      gap: 6px;
+      margin: 16px auto 0;
+    }
+
+    .dpad-btn {
+      background: #8f7a66;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 22px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.1s, transform 0.08s;
+    }
+
+    .dpad-btn:hover  { background: #7f6a56; }
+    .dpad-btn:active { background: #6f5a46; transform: scale(0.92); }
+
+    .dpad-btn[data-dir="up"]    { grid-area: up; }
+    .dpad-btn[data-dir="left"]  { grid-area: left; }
+    .dpad-btn[data-dir="right"] { grid-area: right; }
+    .dpad-btn[data-dir="down"]  { grid-area: down; }
   </style>
 </head>
 <body>
@@ -250,8 +283,15 @@
     </div>
   </div>
 
+  <div class="dpad" id="dpad">
+    <button class="dpad-btn" data-dir="up">↑</button>
+    <button class="dpad-btn" data-dir="left">←</button>
+    <button class="dpad-btn" data-dir="right">→</button>
+    <button class="dpad-btn" data-dir="down">↓</button>
+  </div>
+
   <p class="instructions">
-    <strong>Arrow keys</strong> or <strong>swipe</strong> to move tiles.<br>
+    Tap the arrows, use <strong>arrow keys</strong>, or <strong>swipe</strong> to move tiles.<br>
     Matching tiles <strong>merge</strong> — reach <strong>2048</strong> to win!
   </p>
 
@@ -471,10 +511,13 @@
 
     // ── Touch / Swipe ─────────────────────────────────────────────────────────
     let t0 = null;
-    $board.addEventListener('touchstart', e => {
+    document.addEventListener('touchstart', e => {
       t0 = { x: e.touches[0].clientX, y: e.touches[0].clientY };
     }, { passive: true });
-    $board.addEventListener('touchend', e => {
+    document.addEventListener('touchmove', e => {
+      if (t0) e.preventDefault();
+    }, { passive: false });
+    document.addEventListener('touchend', e => {
       if (!t0) return;
       const dx = e.changedTouches[0].clientX - t0.x;
       const dy = e.changedTouches[0].clientY - t0.y;
@@ -482,6 +525,12 @@
       if (Math.max(Math.abs(dx), Math.abs(dy)) < 20) return;
       if (Math.abs(dx) > Math.abs(dy)) move(dx > 0 ? 'right' : 'left');
       else move(dy > 0 ? 'down' : 'up');
+    });
+
+    // ── D-pad buttons ─────────────────────────────────────────────────────────
+    document.getElementById('dpad').addEventListener('click', e => {
+      const btn = e.target.closest('[data-dir]');
+      if (btn) move(btn.dataset.dir);
     });
 
     // ── Start ─────────────────────────────────────────────────────────────────
