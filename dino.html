@@ -2,22 +2,21 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <meta name="theme-color" content="#1a2e1a"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="theme-color" content="#1a1a2e"/>
   <title>Dino Escape</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      background: #0f1a0f;
+      background: #0d1117;
       min-height: 100vh;
       display: flex;
       flex-direction: column;
       align-items: center;
-      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      font-family: 'Segoe UI', system-ui, sans-serif;
       color: #fff;
-      padding: 10px 16px 32px;
-      user-select: none;
-      -webkit-user-select: none;
+      padding: 10px 16px 40px;
+      user-select: none; -webkit-user-select: none;
     }
     a.back {
       position: fixed; top: 12px; left: 12px;
@@ -28,92 +27,57 @@
       font-size: 13px; font-weight: 600; z-index: 100;
     }
     h1 {
-      font-size: clamp(22px, 6vw, 32px);
-      font-weight: 800;
+      font-size: clamp(20px, 5vw, 28px); font-weight: 800;
       background: linear-gradient(90deg, #4ade80, #86efac, #fbbf24);
       -webkit-background-clip: text; background-clip: text;
       -webkit-text-fill-color: transparent;
-      margin-bottom: 6px;
-      margin-top: 4px;
+      margin: 4px 0 6px;
     }
     .topbar {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 8px;
-      width: 100%;
-      max-width: 400px;
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 6px; width: 100%; max-width: 420px;
       justify-content: space-between;
     }
     .badge {
       background: rgba(255,255,255,0.08);
       border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 20px;
-      padding: 4px 14px;
-      font-size: 13px;
-      font-weight: 600;
+      border-radius: 20px; padding: 4px 14px;
+      font-size: 13px; font-weight: 600;
     }
     .rbtn {
       background: rgba(255,255,255,0.08);
       border: 1px solid rgba(255,255,255,0.15);
       color: #fff; border-radius: 8px;
       padding: 5px 12px; font-size: 12px;
-      font-weight: 600; cursor: pointer;
-      font-family: inherit;
+      font-weight: 600; cursor: pointer; font-family: inherit;
     }
     .rbtn:hover { background: rgba(255,255,255,0.15); }
-    .dots {
-      display: flex; gap: 6px;
-      margin-bottom: 8px;
-      flex-wrap: wrap;
-      justify-content: center;
-    }
-    .dot {
-      width: 14px; height: 14px;
-      border-radius: 50%;
-      background: rgba(255,255,255,0.15);
-      border: 2px solid rgba(255,255,255,0.2);
-      transition: all 0.3s;
-    }
-    .dot.done { background: #4ade80; border-color: #4ade80; }
     canvas {
-      border-radius: 14px;
-      display: block;
-      cursor: pointer;
-      touch-action: none;
-      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px; display: block;
+      cursor: pointer; touch-action: none;
+      border: 1px solid rgba(255,255,255,0.07);
     }
-    .hint {
-      margin-top: 10px;
-      font-size: 12px;
-      opacity: 0.38;
-      text-align: center;
-    }
+    .hint { margin-top: 10px; font-size: 12px; opacity: 0.38; text-align: center; }
   </style>
 </head>
 <body>
 <a class="back" href="index.html">← Games</a>
 <h1>🦖 Dino Escape</h1>
-
 <div class="topbar">
   <span class="badge" id="lvl-badge">Level 1 / 5</span>
   <button class="rbtn" id="restart">↺ Restart</button>
 </div>
-
-<div class="dots" id="dots"></div>
 <canvas id="canvas"></canvas>
-<p class="hint" id="hint">Tap the glowing pins to pull them out!</p>
+<p class="hint" id="hint">Tap the glowing bolt rings to pull them out!</p>
 
 <script>
-// ── Canvas ─────────────────────────────────────────────────────────────────
 const canvas = document.getElementById('canvas');
-const ctx    = canvas.getContext('2d');
-const CW = 360, CH = 500;
-
+const ctx = canvas.getContext('2d');
+const CW = 380, CH = 520;
 let scale = 1;
 function resize() {
-  const avail = Math.min(window.innerWidth - 32, 420);
-  scale = Math.min(avail / CW, 1.3);
+  const avail = Math.min(window.innerWidth - 32, 440);
+  scale = Math.min(avail / CW, 1.4);
   canvas.width  = CW * scale;
   canvas.height = CH * scale;
   ctx.setTransform(scale, 0, 0, scale, 0, 0);
@@ -121,522 +85,424 @@ function resize() {
 resize();
 window.addEventListener('resize', resize);
 
-// roundRect polyfill
-function rrect(x, y, w, h, r) {
+// ── helpers ──────────────────────────────────────────────────────────────────
+function rrect(x,y,w,h,r){
   ctx.beginPath();
-  ctx.moveTo(x+r, y);
-  ctx.lineTo(x+w-r, y);   ctx.arcTo(x+w, y,     x+w, y+r,   r);
-  ctx.lineTo(x+w, y+h-r); ctx.arcTo(x+w, y+h,   x+w-r, y+h, r);
-  ctx.lineTo(x+r, y+h);   ctx.arcTo(x,   y+h,   x, y+h-r,   r);
-  ctx.lineTo(x,   y+r);   ctx.arcTo(x,   y,     x+r, y,      r);
+  ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.arcTo(x+w,y,x+w,y+r,r);
+  ctx.lineTo(x+w,y+h-r); ctx.arcTo(x+w,y+h,x+w-r,y+h,r);
+  ctx.lineTo(x+r,y+h); ctx.arcTo(x,y+h,x,y+h-r,r);
+  ctx.lineTo(x,y+r); ctx.arcTo(x,y,x+r,y,r);
   ctx.closePath();
 }
 
-// ── Cage geometry constants ────────────────────────────────────────────────
-const CAGE = { x: 90, y: 110, w: 180, h: 260 };  // cage bounding box
-const CAGE_R = CAGE.x + CAGE.w;
-const CAGE_B = CAGE.y + CAGE.h;
-const CAGE_CX = CAGE.x + CAGE.w / 2;
-const CAGE_CY = CAGE.y + CAGE.h / 2;
+// ── SCENE LAYOUT ─────────────────────────────────────────────────────────────
+// Dino is pinned to a stone floor. Metal bolts nail it through anchor rings.
+// Each bolt = { id, ax,ay (anchor point on dino), dir:'L'|'R'|'U'|'D', req:[] }
+// Pulling slides the bolt out in the given direction.
 
-const PIN_BAR  = 9;   // half-thickness of pin rod
-const PIN_IN   = 65;  // how far rod goes inside cage
-const PIN_OUT  = 20;  // how far rod sticks out beyond cage wall
-const PULL_D   = 105; // total slide distance to fully extract
-const HDL_R    = 17;  // handle radius
-const HDL_OFF  = 18;  // extra offset from rod end to handle center
+const DINO_X = CW/2, DINO_Y = CH/2 - 30;  // dino center
 
-// ── Level data ─────────────────────────────────────────────────────────────
-// dir: L=pull left  R=pull right  U=pull up  D=pull down
-// anchor (x,y) = point where pin passes through cage wall
+// Anchor offsets from dino center (body landmarks)
+const A = {
+  neckL:   { dx:-70, dy:-60 },   // left side of neck
+  neckR:   { dx: 70, dy:-60 },   // right side
+  shoulderL:{ dx:-90, dy:-10 },  // left shoulder
+  shoulderR:{ dx: 90, dy:-10 },  // right shoulder
+  hipL:    { dx:-80, dy: 50 },   // left hip
+  hipR:    { dx: 80, dy: 50 },   // right hip
+  tailL:   { dx:-90, dy: 80 },   // tail left bolt
+  tailR:   { dx: 90, dy: 80 },   // tail right bolt
+};
+
+function anchor(key){ return { ax: DINO_X+A[key].dx, ay: DINO_Y+A[key].dy }; }
+
+// Level definitions
 const LEVELS = [
-  // Level 1 – tutorial, 2 free pins
-  { hint: 'Pull the glowing pins to free the dino!', pins: [
-    { id:0, x:CAGE.x,  y:CAGE_CY,      dir:'L', req:[] },
-    { id:1, x:CAGE_R,  y:CAGE_CY,      dir:'R', req:[] },
+  // 1 — 2 bolts, tutorial
+  { hint:'Pull the glowing bolts to free the dino!', pins:[
+    { id:0, ...anchor('shoulderL'), dir:'L', req:[] },
+    { id:1, ...anchor('shoulderR'), dir:'R', req:[] },
   ]},
-  // Level 2 – 4 pins, top unlocks sides, sides unlock bottom
-  { hint: 'Start from the top!', pins: [
-    { id:0, x:CAGE_CX, y:CAGE.y,       dir:'U', req:[] },
-    { id:1, x:CAGE.x,  y:CAGE_CY,      dir:'L', req:[0] },
-    { id:2, x:CAGE_R,  y:CAGE_CY,      dir:'R', req:[0] },
-    { id:3, x:CAGE_CX, y:CAGE_B,       dir:'D', req:[1,2] },
+  // 2 — 4 bolts, neck before hips
+  { hint:'Neck bolts must come out first!', pins:[
+    { id:0, ...anchor('neckL'),    dir:'L', req:[] },
+    { id:1, ...anchor('neckR'),    dir:'R', req:[] },
+    { id:2, ...anchor('hipL'),     dir:'L', req:[0] },
+    { id:3, ...anchor('hipR'),     dir:'R', req:[1] },
   ]},
-  // Level 3 – 5 pins with fork
-  { hint: 'Think before you pull!', pins: [
-    { id:0, x:CAGE_R,  y:CAGE_B - 65,  dir:'R', req:[] },
-    { id:1, x:CAGE_R,  y:CAGE.y + 65,  dir:'R', req:[] },
-    { id:2, x:CAGE.x,  y:CAGE_CY,      dir:'L', req:[0,1] },
-    { id:3, x:CAGE_CX, y:CAGE.y,       dir:'U', req:[2] },
-    { id:4, x:CAGE_CX, y:CAGE_B,       dir:'D', req:[2] },
+  // 3 — 5 bolts, shoulders unlock hips, then tail
+  { hint:'Work from top to bottom!', pins:[
+    { id:0, ...anchor('shoulderL'), dir:'L', req:[] },
+    { id:1, ...anchor('shoulderR'), dir:'R', req:[] },
+    { id:2, ...anchor('hipL'),      dir:'L', req:[0] },
+    { id:3, ...anchor('hipR'),      dir:'R', req:[1] },
+    { id:4, ...anchor('tailL'),     dir:'D', req:[2,3] },
   ]},
-  // Level 4 – 6 pins spiral chain
-  { hint: 'Follow the chain!', pins: [
-    { id:0, x:CAGE_CX,        y:CAGE_B,       dir:'D', req:[] },
-    { id:1, x:CAGE.x,         y:CAGE_B - 65,  dir:'L', req:[0] },
-    { id:2, x:CAGE_R,         y:CAGE_CY,      dir:'R', req:[0] },
-    { id:3, x:CAGE.x,         y:CAGE.y + 65,  dir:'L', req:[1] },
-    { id:4, x:CAGE_CX - 45,   y:CAGE.y,       dir:'U', req:[2,3] },
-    { id:5, x:CAGE_CX + 45,   y:CAGE.y,       dir:'U', req:[4] },
+  // 4 — 6 bolts with cross-dependency
+  { hint:'Some bolts need two others free first!', pins:[
+    { id:0, ...anchor('neckL'),     dir:'U', req:[] },
+    { id:1, ...anchor('neckR'),     dir:'U', req:[] },
+    { id:2, ...anchor('shoulderL'), dir:'L', req:[0] },
+    { id:3, ...anchor('shoulderR'), dir:'R', req:[1] },
+    { id:4, ...anchor('tailL'),     dir:'L', req:[2,3] },
+    { id:5, ...anchor('tailR'),     dir:'R', req:[2,3] },
   ]},
-  // Level 5 – 8 pins final challenge
-  { hint: 'Final challenge — good luck!', pins: [
-    { id:0, x:CAGE.x,         y:CAGE_B - 65,  dir:'L', req:[] },
-    { id:1, x:CAGE_R,         y:CAGE_B - 65,  dir:'R', req:[] },
-    { id:2, x:CAGE.x,         y:CAGE.y + 65,  dir:'L', req:[0] },
-    { id:3, x:CAGE_R,         y:CAGE.y + 65,  dir:'R', req:[1] },
-    { id:4, x:CAGE_CX - 45,   y:CAGE_B,       dir:'D', req:[2,3] },
-    { id:5, x:CAGE_CX + 45,   y:CAGE_B,       dir:'D', req:[2,3] },
-    { id:6, x:CAGE_CX - 45,   y:CAGE.y,       dir:'U', req:[4] },
-    { id:7, x:CAGE_CX + 45,   y:CAGE.y,       dir:'U', req:[5] },
+  // 5 — 8 bolts, full chain
+  { hint:'Final challenge — think it through!', pins:[
+    { id:0, ...anchor('neckL'),      dir:'L', req:[] },
+    { id:1, ...anchor('neckR'),      dir:'R', req:[] },
+    { id:2, ...anchor('shoulderL'),  dir:'L', req:[0] },
+    { id:3, ...anchor('shoulderR'),  dir:'R', req:[1] },
+    { id:4, ...anchor('hipL'),       dir:'L', req:[2] },
+    { id:5, ...anchor('hipR'),       dir:'R', req:[3] },
+    { id:6, ...anchor('tailL'),      dir:'D', req:[4,5] },
+    { id:7, ...anchor('tailR'),      dir:'D', req:[4,5] },
   ]},
 ];
 
-// ── Game state ─────────────────────────────────────────────────────────────
-let pins = [], particles = [];
-let levelIdx = 0;
-let phase = 'play';     // 'play' | 'cage-break' | 'win'
-let breakProg = 0;
-let hoverPin = null;
+// ── BOLT GEOMETRY ─────────────────────────────────────────────────────────────
+const BOLT_LEN   = 68;  // rod length
+const BOLT_R     = 6;   // rod radius
+const RING_R     = 18;  // ring outer radius
+const PULL_DIST  = 110; // total extraction distance
 
-function loadLevel(idx) {
+function boltGeom(pin){
+  const p = pin.prog * PULL_DIST;
+  const { ax, ay, dir } = pin;
+  let dx=0, dy=0;
+  if(dir==='L') dx=-1; if(dir==='R') dx=1;
+  if(dir==='U') dy=-1; if(dir==='D') dy=1;
+  // near end (outside, where ring is)
+  const nx = ax + dx*(BOLT_LEN/2 + p);
+  const ny = ay + dy*(BOLT_LEN/2 + p);
+  // far end (inside body)
+  const fx = ax - dx*(BOLT_LEN/2 - p);
+  const fy = ay - dy*(BOLT_LEN/2 - p);
+  // ring center (at near end)
+  const rx = ax + dx*(BOLT_LEN/2 + RING_R*0.5 + p);
+  const ry = ay + dy*(BOLT_LEN/2 + RING_R*0.5 + p);
+  return { nx,ny,fx,fy,rx,ry,dx,dy };
+}
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let pins=[], particles=[], levelIdx=0;
+let phase='play', breakProg=0, dinoFrame=0;
+let hoverPin=null;
+
+function loadLevel(idx){
   levelIdx = idx;
-  const def = LEVELS[idx];
-  pins = def.pins.map(p => ({ ...p, pulled: false, prog: 0, animating: false }));
-  particles = []; phase = 'play'; breakProg = 0; hoverPin = null;
+  pins = LEVELS[idx].pins.map(p=>({...p, pulled:false, prog:0, animating:false}));
+  particles=[]; phase='play'; breakProg=0; hoverPin=null;
   document.getElementById('lvl-badge').textContent = `Level ${idx+1} / ${LEVELS.length}`;
-  document.getElementById('hint').textContent = def.hint;
-  rebuildDots();
+  document.getElementById('hint').textContent = LEVELS[idx].hint;
 }
 
-function rebuildDots() {
-  const c = document.getElementById('dots');
-  c.innerHTML = '';
-  pins.forEach(p => {
-    const d = document.createElement('div');
-    d.className = 'dot' + (p.pulled ? ' done' : '');
-    d.id = 'dot-' + p.id;
-    c.appendChild(d);
-  });
-}
-
-function markDot(id) {
-  const d = document.getElementById('dot-' + id);
-  if (d) d.classList.add('done');
-}
-
-// ── Pin geometry ────────────────────────────────────────────────────────────
-function pinGeom(pin) {
-  const { x, y, dir, prog } = pin;
-  const slide = prog * PULL_D;
-  let hx = x, hy = y;       // handle center
-  let r1x = x, r1y = y;     // rod near end (outside cage)
-  let r2x = x, r2y = y;     // rod far end  (inside cage)
-  let ancx = x, ancy = y;   // anchor (cage wall) — for spark effects
-
-  switch (dir) {
-    case 'L':
-      hx  = x - PIN_OUT - HDL_OFF - slide;  hy  = y;
-      r1x = x - PIN_OUT - slide;            r1y = y;
-      r2x = x + PIN_IN  - slide;            r2y = y;
-      ancx = x; ancy = y;
-      break;
-    case 'R':
-      hx  = x + PIN_OUT + HDL_OFF + slide;  hy  = y;
-      r1x = x + PIN_OUT + slide;            r1y = y;
-      r2x = x - PIN_IN  + slide;            r2y = y;
-      ancx = x; ancy = y;
-      break;
-    case 'U':
-      hx  = x;  hy  = y - PIN_OUT - HDL_OFF - slide;
-      r1x = x;  r1y = y - PIN_OUT - slide;
-      r2x = x;  r2y = y + PIN_IN  - slide;
-      ancx = x; ancy = y;
-      break;
-    case 'D':
-      hx  = x;  hy  = y + PIN_OUT + HDL_OFF + slide;
-      r1x = x;  r1y = y + PIN_OUT + slide;
-      r2x = x;  r2y = y - PIN_IN  + slide;
-      ancx = x; ancy = y;
-      break;
-  }
-  return { hx, hy, r1x, r1y, r2x, r2y, ancx, ancy };
-}
-
-function isFree(pin) {
+function isFree(pin){
   return !pin.pulled && !pin.animating &&
-    pin.req.every(id => pins.find(p => p.id === id)?.pulled);
+    pin.req.every(id => pins.find(p=>p.id===id)?.pulled);
 }
 
-// ── Draw background ─────────────────────────────────────────────────────────
-function drawBG() {
-  const g = ctx.createLinearGradient(0, 0, CW, CH);
-  g.addColorStop(0, '#162216'); g.addColorStop(1, '#0a120a');
-  ctx.fillStyle = g; ctx.fillRect(0, 0, CW, CH);
+// ── DRAWING ───────────────────────────────────────────────────────────────────
+function drawBG(){
+  // Stone/dungeon floor
+  const g = ctx.createLinearGradient(0,0,0,CH);
+  g.addColorStop(0,'#141b2d'); g.addColorStop(1,'#0a0f1a');
+  ctx.fillStyle=g; ctx.fillRect(0,0,CW,CH);
 
-  // Subtle stone/grass texture lines
-  ctx.strokeStyle = 'rgba(255,255,255,0.025)'; ctx.lineWidth = 1;
-  for (let i = 0; i < CW; i += 36) {
-    ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, CH); ctx.stroke();
-  }
-  for (let j = 0; j < CH; j += 36) {
-    ctx.beginPath(); ctx.moveTo(0, j); ctx.lineTo(CW, j); ctx.stroke();
+  // Stone tile grid
+  ctx.strokeStyle='rgba(255,255,255,0.04)'; ctx.lineWidth=1;
+  for(let x=0;x<CW;x+=50){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,CH); ctx.stroke(); }
+  for(let y=0;y<CH;y+=50){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(CW,y); ctx.stroke(); }
+
+  // Central platform
+  const px=CW/2-130, py=DINO_Y-120, pw=260, ph=320;
+  const pg = ctx.createLinearGradient(px,py,px,py+ph);
+  pg.addColorStop(0,'rgba(60,50,30,0.7)'); pg.addColorStop(1,'rgba(30,25,15,0.7)');
+  rrect(px,py,pw,ph,12); ctx.fillStyle=pg; ctx.fill();
+  ctx.strokeStyle='rgba(150,110,50,0.3)'; ctx.lineWidth=1.5; ctx.stroke();
+
+  // Wood grain lines on platform
+  ctx.strokeStyle='rgba(0,0,0,0.2)'; ctx.lineWidth=1;
+  for(let gy=py+10;gy<py+ph-10;gy+=18){
+    ctx.beginPath(); ctx.moveTo(px+6,gy); ctx.lineTo(px+pw-6,gy); ctx.stroke();
   }
 }
 
-// ── Draw cage ───────────────────────────────────────────────────────────────
-function drawCage(breakP) {
-  const { x, y, w, h } = CAGE;
-  const cx = x + w/2, cy = y + h/2;
-  const BTHICK = 16;
-
-  // Offsets for cage-break animation
-  const t  = breakP * -120;   // top goes up
-  const b  = breakP *  120;   // bottom goes down
-  const lf = breakP * -120;   // left goes left
-  const rt = breakP *  120;   // right goes right
-
+function drawDino(freed){
   ctx.save();
-
-  // Top bar
-  ctx.save(); ctx.translate(0, t);
-  drawWoodBar(x - BTHICK/2, y - BTHICK/2, w + BTHICK, BTHICK);
-  ctx.restore();
-
-  // Bottom bar
-  ctx.save(); ctx.translate(0, b);
-  drawWoodBar(x - BTHICK/2, y + h - BTHICK/2, w + BTHICK, BTHICK);
-  ctx.restore();
-
-  // Left bar
-  ctx.save(); ctx.translate(lf, 0);
-  drawWoodBar(x - BTHICK/2, y - BTHICK/2, BTHICK, h + BTHICK);
-  ctx.restore();
-
-  // Right bar
-  ctx.save(); ctx.translate(rt, 0);
-  drawWoodBar(x + w - BTHICK/2, y - BTHICK/2, BTHICK, h + BTHICK);
-  ctx.restore();
-
-  // Inner vertical bars (fixed)
-  if (breakP < 0.1) {
-    ctx.strokeStyle = 'rgba(139,90,43,0.8)'; ctx.lineWidth = 6;
-    [1, 2].forEach(i => {
-      ctx.beginPath();
-      ctx.moveTo(x + (w/3)*i, y); ctx.lineTo(x + (w/3)*i, y + h);
-      ctx.stroke();
-    });
-    ctx.strokeStyle = 'rgba(139,90,43,0.6)'; ctx.lineWidth = 4;
-    [1, 2].forEach(i => {
-      ctx.beginPath();
-      ctx.moveTo(x, y + (h/3)*i); ctx.lineTo(x + w, y + (h/3)*i);
-      ctx.stroke();
-    });
-  }
-
-  ctx.restore();
-}
-
-function drawWoodBar(x, y, w, h) {
-  // Wood base
-  ctx.fillStyle = '#6b3d10';
-  rrect(x, y, w, h, 5); ctx.fill();
-  // Wood grain highlight
-  ctx.fillStyle = 'rgba(255,200,80,0.12)';
-  rrect(x+2, y+2, w-4, Math.min(4, h-4), 2); ctx.fill();
-  // Shadow edge
-  ctx.fillStyle = 'rgba(0,0,0,0.3)';
-  rrect(x, y+h-4, w, 4, 3); ctx.fill();
-}
-
-// ── Draw dino ───────────────────────────────────────────────────────────────
-let dinoFrame = 0;
-function drawDino(freed) {
-  ctx.save();
-  const cx = CAGE_CX, cy = CAGE_CY;
-  if (freed) {
-    const bounce = Math.sin(dinoFrame * 0.12) * 14;
-    const tilt   = Math.sin(dinoFrame * 0.08) * 0.12;
-    ctx.translate(cx, cy - 10 + bounce);
-    ctx.rotate(tilt);
+  if(freed){
+    const bounce = Math.sin(dinoFrame*0.13)*18;
+    const spin   = Math.sin(dinoFrame*0.09)*0.25;
+    ctx.translate(DINO_X, DINO_Y - 20 + bounce);
+    ctx.rotate(spin);
   } else {
-    ctx.translate(cx, cy - 10);
+    ctx.translate(DINO_X, DINO_Y);
+    // Shake slightly when all bolts are being removed
+    const remaining = pins.filter(p=>!p.pulled).length;
+    if(remaining <= 1 && phase==='play'){
+      ctx.translate(Math.sin(dinoFrame*0.4)*2, 0);
+    }
   }
-  ctx.font = '72px serif';
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.font='90px serif';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+
+  // Shadow under dino
+  ctx.shadowColor='rgba(0,0,0,0.6)'; ctx.shadowBlur=20; ctx.shadowOffsetY=8;
   ctx.fillText('🦖', 0, 0);
+  ctx.shadowBlur=0; ctx.shadowOffsetY=0;
   ctx.restore();
 }
 
-// ── Draw pin ────────────────────────────────────────────────────────────────
-function drawPin(pin) {
-  if (pin.pulled && pin.prog >= 1) return;
-
-  const free   = isFree(pin);
-  const isHov  = (pin === hoverPin && free);
-  const { hx, hy, r1x, r1y, r2x, r2y } = pinGeom(pin);
+function drawBolt(pin){
+  if(pin.pulled && pin.prog>=1) return;
+  const free = isFree(pin);
+  const hov  = free && pin===hoverPin;
+  const { nx,ny,fx,fy,rx,ry,dx,dy } = boltGeom(pin);
 
   ctx.save();
 
-  // ── Rod ─────────────────────────────────────────────────────────────────
-  const isHoriz = (pin.dir === 'L' || pin.dir === 'R');
-  const rx = isHoriz ? Math.min(r1x, r2x) : r1x - PIN_BAR;
-  const ry = isHoriz ? r1y - PIN_BAR     : Math.min(r1y, r2y);
-  const rw = isHoriz ? Math.abs(r2x - r1x) : PIN_BAR * 2;
-  const rh = isHoriz ? PIN_BAR * 2         : Math.abs(r2y - r1y);
+  // ── Rod ──────────────────────────────────────────────────────────────────
+  const horiz = (pin.dir==='L'||pin.dir==='R');
+  const rodLen = Math.hypot(nx-fx, ny-fy);
 
-  // Rod gradient (metallic)
-  let rodGrad;
-  if (isHoriz) {
-    rodGrad = ctx.createLinearGradient(rx, ry, rx, ry + rh);
+  // Draw rod as thick line
+  ctx.lineCap='round';
+  ctx.lineWidth = BOLT_R*2;
+
+  const rodGrad = horiz
+    ? ctx.createLinearGradient(fx,fy-BOLT_R,fx,fy+BOLT_R)
+    : ctx.createLinearGradient(fx-BOLT_R,fy,fx+BOLT_R,fy);
+
+  if(free){
+    rodGrad.addColorStop(0,'#9ca3af');
+    rodGrad.addColorStop(0.4,'#e2e8f0');
+    rodGrad.addColorStop(0.6,'#d1d5db');
+    rodGrad.addColorStop(1,'#6b7280');
   } else {
-    rodGrad = ctx.createLinearGradient(rx, ry, rx + rw, ry);
+    rodGrad.addColorStop(0,'#374151');
+    rodGrad.addColorStop(0.5,'#4b5563');
+    rodGrad.addColorStop(1,'#1f2937');
   }
 
-  if (!free) {
-    rodGrad.addColorStop(0, '#4a4a4a');
-    rodGrad.addColorStop(0.5, '#5a5a5a');
-    rodGrad.addColorStop(1, '#333');
-  } else {
-    rodGrad.addColorStop(0, '#bbb');
-    rodGrad.addColorStop(0.4, '#e0e0e0');
-    rodGrad.addColorStop(0.6, '#c8c8c8');
-    rodGrad.addColorStop(1, '#888');
-  }
+  if(free){ ctx.shadowColor=hov?'rgba(251,191,36,0.7)':'rgba(251,191,36,0.3)'; ctx.shadowBlur=hov?20:10; }
 
-  if (free) {
-    ctx.shadowColor = isHov ? '#ffd166' : 'rgba(255,209,102,0.4)';
-    ctx.shadowBlur  = isHov ? 16 : 8;
-  }
+  ctx.strokeStyle = rodGrad;
+  ctx.beginPath(); ctx.moveTo(fx,fy); ctx.lineTo(nx,ny); ctx.stroke();
 
-  if (rw > 0 && rh > 0) {
-    rrect(rx, ry, rw, rh, PIN_BAR);
-    ctx.fillStyle = rodGrad; ctx.fill();
-    ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.lineWidth = 1; ctx.stroke();
-  }
-
-  // Thread grooves (decorative)
-  if (free) {
-    ctx.strokeStyle = 'rgba(0,0,0,0.2)'; ctx.lineWidth = 1;
-    if (isHoriz) {
-      for (let gx = rx + 8; gx < rx + rw - 6; gx += 8) {
-        ctx.beginPath(); ctx.moveTo(gx, ry+2); ctx.lineTo(gx, ry+rh-2); ctx.stroke();
-      }
-    } else {
-      for (let gy = ry + 8; gy < ry + rh - 6; gy += 8) {
-        ctx.beginPath(); ctx.moveTo(rx+2, gy); ctx.lineTo(rx+rw-2, gy); ctx.stroke();
-      }
+  // Thread grooves
+  if(free){
+    ctx.shadowBlur=0;
+    ctx.strokeStyle='rgba(0,0,0,0.25)'; ctx.lineWidth=1.5;
+    const steps = Math.floor(rodLen/10);
+    for(let i=1;i<steps;i++){
+      const t=i/steps;
+      const gx=fx+dx*t*rodLen*(-1), gy=fy+dy*t*rodLen*(-1);
+      // perpendicular tick
+      ctx.beginPath();
+      ctx.moveTo(gx-dy*BOLT_R, gy+dx*BOLT_R);
+      ctx.lineTo(gx+dy*BOLT_R, gy-dx*BOLT_R);
+      ctx.stroke();
     }
   }
 
-  ctx.shadowBlur = 0;
+  // Anchor plate (where bolt goes through platform)
+  ctx.shadowBlur=0;
+  const plateCol = free ? '#78716c' : '#3f3f46';
+  ctx.fillStyle = plateCol;
+  ctx.strokeStyle = 'rgba(0,0,0,0.4)'; ctx.lineWidth=1;
+  if(horiz){
+    rrect(pin.ax-5, pin.ay-BOLT_R-4, 10, BOLT_R*2+8, 3);
+  } else {
+    rrect(pin.ax-BOLT_R-4, pin.ay-5, BOLT_R*2+8, 10, 3);
+  }
+  ctx.fill(); ctx.stroke();
 
-  // ── Handle ──────────────────────────────────────────────────────────────
-  const hColor = free ? (isHov ? '#ff9f2f' : '#f97316') : '#4a4a4a';
-  const hLight = free ? (isHov ? '#ffcc80' : '#fbbf6a') : '#666';
+  // ── Ring handle ──────────────────────────────────────────────────────────
+  ctx.shadowColor = free ? (hov ? '#fbbf24' : 'rgba(251,191,36,0.5)') : 'transparent';
+  ctx.shadowBlur  = free ? (hov ? 24 : 12) : 0;
 
-  ctx.shadowColor = free ? hColor : 'transparent';
-  ctx.shadowBlur  = free ? (isHov ? 18 : 10) : 0;
+  const ringFill = ctx.createRadialGradient(rx-RING_R*0.3,ry-RING_R*0.3,RING_R*0.1,rx,ry,RING_R);
+  if(free){
+    ringFill.addColorStop(0, hov?'#fde68a':'#fcd34d');
+    ringFill.addColorStop(1, hov?'#f59e0b':'#d97706');
+  } else {
+    ringFill.addColorStop(0,'#52525b');
+    ringFill.addColorStop(1,'#27272a');
+  }
 
-  const hGrad = ctx.createRadialGradient(hx - HDL_R*0.3, hy - HDL_R*0.3, HDL_R*0.05, hx, hy, HDL_R);
-  hGrad.addColorStop(0, hLight);
-  hGrad.addColorStop(1, hColor);
+  // Ring body
+  ctx.beginPath(); ctx.arc(rx,ry,RING_R,0,Math.PI*2);
+  ctx.fillStyle=ringFill; ctx.fill();
+  ctx.strokeStyle='rgba(0,0,0,0.35)'; ctx.lineWidth=2; ctx.stroke();
 
-  ctx.beginPath(); ctx.arc(hx, hy, HDL_R, 0, Math.PI*2);
-  ctx.fillStyle = hGrad; ctx.fill();
-  ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.lineWidth = 1.5; ctx.stroke();
+  // Inner hole
+  ctx.globalCompositeOperation='destination-out';
+  ctx.beginPath(); ctx.arc(rx,ry,RING_R*0.52,0,Math.PI*2);
+  ctx.fillStyle='rgba(0,0,0,1)'; ctx.fill();
+  ctx.globalCompositeOperation='source-over';
 
-  ctx.shadowBlur = 0;
+  // Re-draw ring border to clean up
+  ctx.beginPath(); ctx.arc(rx,ry,RING_R,0,Math.PI*2);
+  ctx.strokeStyle=free?(hov?'#fbbf24':'#f59e0b'):'#3f3f46';
+  ctx.lineWidth=2.5; ctx.stroke();
 
-  // Glint on handle
-  ctx.fillStyle = 'rgba(255,255,255,0.35)';
-  ctx.beginPath(); ctx.arc(hx - HDL_R*0.3, hy - HDL_R*0.3, HDL_R*0.35, 0, Math.PI*2); ctx.fill();
+  ctx.shadowBlur=0;
 
-  // Icon inside handle
-  ctx.font = free ? '14px serif' : '13px serif';
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillStyle = free ? '#fff' : 'rgba(255,255,255,0.4)';
-  ctx.shadowBlur = 0;
-  ctx.fillText(free ? (isHov ? '✋' : '👆') : '🔒', hx, hy + 1);
+  // Arrow indicator on free bolts
+  if(free){
+    const arrowX = rx + dx*26, arrowY = ry + dy*26;
+    ctx.fillStyle = hov ? '#fbbf24' : 'rgba(251,191,36,0.7)';
+    ctx.font = '16px serif';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    const arrows = { L:'←', R:'→', U:'↑', D:'↓' };
+    ctx.fillText(arrows[pin.dir], arrowX, arrowY);
+  }
+
+  // Lock icon for locked bolts
+  if(!free && !pin.pulled){
+    ctx.fillStyle='rgba(255,255,255,0.25)';
+    ctx.font='11px serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.shadowBlur=0;
+    ctx.fillText('🔒', rx, ry+1);
+  }
 
   ctx.restore();
-
-  // Chain links for locked pins (visual connection to required pins)
-  if (!free && !pin.pulled) {
-    pin.req.forEach(reqId => {
-      const reqPin = pins.find(p => p.id === reqId);
-      if (reqPin && !reqPin.pulled) {
-        const rg = pinGeom(reqPin);
-        ctx.save();
-        ctx.setLineDash([4, 4]);
-        ctx.strokeStyle = 'rgba(255,200,80,0.25)'; ctx.lineWidth = 1.5;
-        ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(rg.hx, rg.hy); ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.restore();
-      }
-    });
-  }
 }
 
-// ── Particles ───────────────────────────────────────────────────────────────
-function addSparks(x, y, color) {
-  for (let i = 0; i < 10; i++) {
-    const a = Math.random() * Math.PI*2, s = 2 + Math.random()*4;
-    particles.push({ x, y, vx: Math.cos(a)*s, vy: Math.sin(a)*s - 1,
-      r: 2+Math.random()*4, color, life: 1, decay: 0.05+Math.random()*0.04 });
+// ── PARTICLES ─────────────────────────────────────────────────────────────────
+function addSparks(x,y){
+  const cols=['#fbbf24','#f97316','#ef4444','#fde68a'];
+  for(let i=0;i<14;i++){
+    const a=Math.random()*Math.PI*2, s=2+Math.random()*5;
+    particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-1,
+      r:1.5+Math.random()*3, color:cols[i%cols.length], life:1, decay:0.04+Math.random()*0.04});
   }
 }
-function addConfetti(cx, cy) {
-  const cols = ['#4ade80','#ffd166','#ff6b6b','#4cc9f0','#a78bfa','#fbbf24'];
-  for (let i = 0; i < 55; i++) {
-    const a = Math.random()*Math.PI*2, s = 3+Math.random()*6;
-    particles.push({ x: cx, y: cy, vx: Math.cos(a)*s, vy: Math.sin(a)*s - 2,
-      r: 3+Math.random()*6, color: cols[i%cols.length], life: 1, decay: 0.025+Math.random()*0.02 });
+function addConfetti(){
+  const cols=['#4ade80','#ffd166','#ff6b6b','#4cc9f0','#a78bfa','#fbbf24'];
+  for(let i=0;i<70;i++){
+    const a=Math.random()*Math.PI*2, s=3+Math.random()*8;
+    particles.push({x:CW/2,y:CH/2,vx:Math.cos(a)*s,vy:Math.sin(a)*s-3,
+      r:2+Math.random()*6, color:cols[i%cols.length], life:1, decay:0.018+Math.random()*0.018});
   }
 }
-function tickParticles() {
-  for (let i = particles.length-1; i >= 0; i--) {
-    const p = particles[i];
-    p.x += p.vx; p.y += p.vy; p.vy += 0.28; p.life -= p.decay;
-    if (p.life <= 0) particles.splice(i, 1);
+function tickParticles(){
+  for(let i=particles.length-1;i>=0;i--){
+    const p=particles[i];
+    p.x+=p.vx; p.y+=p.vy; p.vy+=0.25; p.life-=p.decay;
+    if(p.life<=0) particles.splice(i,1);
   }
 }
-function drawParticles() {
-  for (const p of particles) {
-    ctx.save(); ctx.globalAlpha = Math.max(0, p.life);
-    ctx.fillStyle = p.color;
-    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2); ctx.fill();
+function drawParticles(){
+  for(const p of particles){
+    ctx.save(); ctx.globalAlpha=Math.max(0,p.life);
+    ctx.fillStyle=p.color;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill();
     ctx.restore();
   }
 }
 
-// ── Win overlay ─────────────────────────────────────────────────────────────
-function drawWinOverlay() {
+// ── WIN OVERLAY ───────────────────────────────────────────────────────────────
+function drawWinOverlay(){
   ctx.save();
-  ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(0, 0, CW, CH);
+  ctx.fillStyle='rgba(0,0,0,0.55)'; ctx.fillRect(0,0,CW,CH);
+  ctx.textAlign='center'; ctx.textBaseline='middle';
 
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.font='bold 36px system-ui';
+  ctx.fillStyle='#4ade80';
+  ctx.shadowColor='#4ade80'; ctx.shadowBlur=20;
+  ctx.fillText('🎉 Dino Freed!', CW/2, CH/2-62);
+  ctx.shadowBlur=0;
 
-  ctx.font = 'bold 40px system-ui';
-  ctx.fillStyle = '#4ade80';
-  ctx.shadowColor = '#4ade80'; ctx.shadowBlur = 24;
-  ctx.fillText('🎉 Dino Freed!', CW/2, CH/2 - 68);
-  ctx.shadowBlur = 0;
+  const last = levelIdx>=LEVELS.length-1;
+  ctx.font='16px system-ui'; ctx.fillStyle='rgba(255,255,255,0.6)';
+  ctx.fillText(last?'🏆 You beat all 5 levels!':`Level ${levelIdx+1} complete!`, CW/2, CH/2-22);
 
-  const last = levelIdx >= LEVELS.length - 1;
-  ctx.font = '17px system-ui';
-  ctx.fillStyle = last ? '#ffd166' : 'rgba(255,255,255,0.65)';
-  ctx.fillText(last ? '🏆 All Levels Complete!' : `Level ${levelIdx+1} complete!`, CW/2, CH/2 - 26);
+  const bx=CW/2-80, by=CH/2+4, bw=160, bh=46;
+  const bg=ctx.createLinearGradient(bx,by,bx+bw,by);
+  bg.addColorStop(0,'#4ade80'); bg.addColorStop(1,'#22d3ee');
+  rrect(bx,by,bw,bh,23); ctx.fillStyle=bg; ctx.fill();
 
-  // Button
-  const bx = CW/2-85, by = CH/2+8, bw = 170, bh = 48;
-  const bg = ctx.createLinearGradient(bx, by, bx+bw, by);
-  bg.addColorStop(0, '#4ade80'); bg.addColorStop(1, '#22d3ee');
-  ctx.fillStyle = bg; rrect(bx, by, bw, bh, 24); ctx.fill();
-
-  ctx.font = 'bold 16px system-ui'; ctx.fillStyle = '#0f1a0f'; ctx.shadowBlur = 0;
-  ctx.fillText(last ? '▶ Play Again' : `▶ Next Level`, CW/2, by+bh/2+1);
-
+  ctx.font='bold 15px system-ui'; ctx.fillStyle='#0a1f0a';
+  ctx.fillText(last?'▶ Play Again':`▶ Next Level`, CW/2, by+bh/2+1);
   ctx.restore();
 }
 
-// ── Main loop ────────────────────────────────────────────────────────────────
-let raf = 0;
-function loop() {
+// ── MAIN LOOP ─────────────────────────────────────────────────────────────────
+function loop(){
   dinoFrame++;
 
-  // Animate pin pulls
-  for (const pin of pins) {
-    if (pin.animating) {
-      pin.prog = Math.min(1, pin.prog + 0.06);
-      if (pin.prog >= 1) { pin.animating = false; pin.pulled = true; markDot(pin.id); }
+  // Animate bolt pulling
+  for(const pin of pins){
+    if(pin.animating){
+      pin.prog = Math.min(1, pin.prog+0.055);
+      if(pin.prog>=1){ pin.animating=false; pin.pulled=true; }
     }
   }
 
-  // Check if all pulled
-  if (phase === 'play' && pins.every(p => p.pulled)) {
-    phase = 'cage-break';
-    addConfetti(CAGE_CX, CAGE_CY);
-  }
-
-  // Cage break animation
-  if (phase === 'cage-break') {
-    breakProg = Math.min(1, breakProg + 0.04);
-    if (breakProg >= 1) phase = 'win';
+  // All bolts removed → celebrate
+  if(phase==='play' && pins.every(p=>p.pulled)){
+    phase='win';
+    addConfetti();
   }
 
   tickParticles();
 
-  // ── Render ──────────────────────────────────────────────────────────────
+  // Draw
   drawBG();
-
-  if (phase !== 'win') drawCage(breakProg);
-
-  drawDino(phase !== 'play');
-
-  if (phase === 'play') for (const pin of pins) drawPin(pin);
-
+  drawDino(phase==='win');
+  if(phase==='play') for(const pin of pins) drawBolt(pin);
   drawParticles();
+  if(phase==='win') drawWinOverlay();
 
-  if (phase === 'win') drawWinOverlay();
-
-  raf = requestAnimationFrame(loop);
+  requestAnimationFrame(loop);
 }
 
-// ── Input ────────────────────────────────────────────────────────────────────
-function gameXY(clientX, clientY) {
-  const r = canvas.getBoundingClientRect();
-  return { gx: (clientX - r.left) / scale, gy: (clientY - r.top) / scale };
+// ── INPUT ─────────────────────────────────────────────────────────────────────
+function toGame(cx,cy){
+  const r=canvas.getBoundingClientRect();
+  return {gx:(cx-r.left)/scale, gy:(cy-r.top)/scale};
 }
-
-function hitPin(gx, gy) {
-  for (const pin of pins) {
-    if (pin.pulled || pin.animating) continue;
-    const { hx, hy } = pinGeom(pin);
-    if (Math.hypot(hx - gx, hy - gy) < HDL_R + 10) return pin;
+function hitBolt(gx,gy){
+  for(const pin of pins){
+    if(pin.pulled||pin.animating) continue;
+    const {rx,ry}=boltGeom(pin);
+    if(Math.hypot(rx-gx,ry-gy)<RING_R+12) return pin;
   }
   return null;
 }
 
-canvas.addEventListener('mousemove', e => {
-  const { gx, gy } = gameXY(e.clientX, e.clientY);
-  const h = hitPin(gx, gy);
-  hoverPin = (h && isFree(h)) ? h : null;
-  canvas.style.cursor = hoverPin ? 'grab' : 'pointer';
+canvas.addEventListener('mousemove', e=>{
+  const {gx,gy}=toGame(e.clientX,e.clientY);
+  const h=hitBolt(gx,gy);
+  hoverPin=(h&&isFree(h))?h:null;
+  canvas.style.cursor=hoverPin?'grab':'default';
 });
 
-function handleTap(clientX, clientY) {
-  const { gx, gy } = gameXY(clientX, clientY);
-
-  if (phase === 'win') {
-    // Check button
-    const bx = CW/2-85, by = CH/2+8, bw = 170, bh = 48;
-    if (gx > bx && gx < bx+bw && gy > by && gy < by+bh) {
-      loadLevel(levelIdx >= LEVELS.length - 1 ? 0 : levelIdx + 1);
+function handleTap(cx,cy){
+  const {gx,gy}=toGame(cx,cy);
+  if(phase==='win'){
+    const bx=CW/2-80,by=CH/2+4,bw=160,bh=46;
+    if(gx>bx&&gx<bx+bw&&gy>by&&gy<by+bh){
+      loadLevel(levelIdx>=LEVELS.length-1?0:levelIdx+1);
     }
     return;
   }
-
-  if (phase !== 'play') return;
-
-  const pin = hitPin(gx, gy);
-  if (pin && isFree(pin)) {
-    pin.animating = true;
-    const { ancx, ancy } = pinGeom(pin);
-    addSparks(ancx, ancy, '#ffd166');
-    addSparks(ancx, ancy, '#ff9f2f');
+  const pin=hitBolt(gx,gy);
+  if(pin&&isFree(pin)){
+    pin.animating=true;
+    addSparks(pin.ax,pin.ay);
   }
 }
 
-canvas.addEventListener('click', e => handleTap(e.clientX, e.clientY));
-canvas.addEventListener('touchend', e => {
+canvas.addEventListener('click', e=>handleTap(e.clientX,e.clientY));
+canvas.addEventListener('touchend', e=>{
   e.preventDefault();
   handleTap(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
-}, { passive: false });
+},{passive:false});
 
-document.getElementById('restart').addEventListener('click', () => loadLevel(levelIdx));
+document.getElementById('restart').addEventListener('click',()=>loadLevel(levelIdx));
 
-// ── Start ─────────────────────────────────────────────────────────────────
 loadLevel(0);
 requestAnimationFrame(loop);
 </script>
