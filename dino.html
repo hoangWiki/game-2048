@@ -1,64 +1,47 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/>
+<meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <meta name="theme-color" content="#1a1a2e"/>
-  <title>Dino Escape</title>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      background: #0d1117;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      font-family: 'Segoe UI', system-ui, sans-serif;
-      color: #fff;
-      padding: 10px 16px 40px;
-      user-select: none; -webkit-user-select: none;
-    }
-    a.back {
-      position: fixed; top: 12px; left: 12px;
-      background: rgba(255,255,255,0.1);
-      border: 1px solid rgba(255,255,255,0.2);
-      color: #fff; text-decoration: none;
-      padding: 6px 14px; border-radius: 8px;
-      font-size: 13px; font-weight: 600; z-index: 100;
-    }
-    h1 {
-      font-size: clamp(20px, 5vw, 28px); font-weight: 800;
-      background: linear-gradient(90deg, #4ade80, #86efac, #fbbf24);
-      -webkit-background-clip: text; background-clip: text;
-      -webkit-text-fill-color: transparent;
-      margin: 4px 0 6px;
-    }
-    .topbar {
-      display: flex; align-items: center; gap: 12px;
-      margin-bottom: 6px; width: 100%; max-width: 420px;
-      justify-content: space-between;
-    }
-    .badge {
-      background: rgba(255,255,255,0.08);
-      border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 20px; padding: 4px 14px;
-      font-size: 13px; font-weight: 600;
-    }
-    .rbtn {
-      background: rgba(255,255,255,0.08);
-      border: 1px solid rgba(255,255,255,0.15);
-      color: #fff; border-radius: 8px;
-      padding: 5px 12px; font-size: 12px;
-      font-weight: 600; cursor: pointer; font-family: inherit;
-    }
-    .rbtn:hover { background: rgba(255,255,255,0.15); }
-    canvas {
-      border-radius: 16px; display: block;
-      cursor: pointer; touch-action: none;
-      border: 1px solid rgba(255,255,255,0.07);
-    }
-    .hint { margin-top: 10px; font-size: 12px; opacity: 0.38; text-align: center; }
-  </style>
+<meta name="theme-color" content="#0d1117"/>
+<title>Dino Escape – Screw Puzzle</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{
+  background:#0d1117;min-height:100vh;
+  display:flex;flex-direction:column;align-items:center;
+  font-family:'Segoe UI',system-ui,sans-serif;color:#fff;
+  padding:8px 12px 32px;user-select:none;-webkit-user-select:none;
+}
+a.back{
+  position:fixed;top:12px;left:12px;
+  background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);
+  color:#fff;text-decoration:none;padding:6px 14px;border-radius:8px;
+  font-size:13px;font-weight:600;z-index:100;
+}
+h1{
+  font-size:clamp(18px,5vw,26px);font-weight:800;
+  background:linear-gradient(90deg,#4ade80,#86efac,#fbbf24);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  margin:2px 0 6px;
+}
+.topbar{
+  display:flex;align-items:center;gap:12px;
+  margin-bottom:6px;width:100%;max-width:400px;justify-content:space-between;
+}
+.badge{
+  background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);
+  border-radius:20px;padding:4px 14px;font-size:13px;font-weight:600;
+}
+.rbtn{
+  background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);
+  color:#fff;border-radius:8px;padding:5px 12px;font-size:12px;
+  font-weight:600;cursor:pointer;font-family:inherit;
+}
+.rbtn:hover{background:rgba(255,255,255,0.15)}
+canvas{border-radius:16px;display:block;cursor:pointer;touch-action:none;border:1px solid rgba(255,255,255,0.07)}
+.hint{margin-top:10px;font-size:12px;opacity:0.38;text-align:center}
+</style>
 </head>
 <body>
 <a class="back" href="index.html">← Games</a>
@@ -68,441 +51,492 @@
   <button class="rbtn" id="restart">↺ Restart</button>
 </div>
 <canvas id="canvas"></canvas>
-<p class="hint" id="hint">Tap the glowing bolt rings to pull them out!</p>
-
+<p class="hint" id="hint">Tap a screw to unscrew it — wrong order jams!</p>
 <script>
+// ── Canvas ────────────────────────────────────────────────────────────────────
 const canvas = document.getElementById('canvas');
-const ctx = canvas.getContext('2d');
-const CW = 380, CH = 520;
+const ctx    = canvas.getContext('2d');
+const CW = 380, CH = 500;
 let scale = 1;
-function resize() {
-  const avail = Math.min(window.innerWidth - 32, 440);
-  scale = Math.min(avail / CW, 1.4);
+function resize(){
+  const avail = Math.min(window.innerWidth - 24, 440);
+  scale = Math.min(avail / CW, 1.35);
   canvas.width  = CW * scale;
   canvas.height = CH * scale;
-  ctx.setTransform(scale, 0, 0, scale, 0, 0);
+  ctx.setTransform(scale,0,0,scale,0,0);
 }
-resize();
-window.addEventListener('resize', resize);
+resize(); window.addEventListener('resize', resize);
 
-// ── helpers ──────────────────────────────────────────────────────────────────
-function rrect(x,y,w,h,r){
-  ctx.beginPath();
-  ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.arcTo(x+w,y,x+w,y+r,r);
-  ctx.lineTo(x+w,y+h-r); ctx.arcTo(x+w,y+h,x+w-r,y+h,r);
-  ctx.lineTo(x+r,y+h); ctx.arcTo(x,y+h,x,y+h-r,r);
-  ctx.lineTo(x,y+r); ctx.arcTo(x,y,x+r,y,r);
-  ctx.closePath();
-}
-
-// ── SCENE LAYOUT ─────────────────────────────────────────────────────────────
-// Dino is pinned to a stone floor. Metal bolts nail it through anchor rings.
-// Each bolt = { id, ax,ay (anchor point on dino), dir:'L'|'R'|'U'|'D', req:[] }
-// Pulling slides the bolt out in the given direction.
-
-const DINO_X = CW/2, DINO_Y = CH/2 - 30;  // dino center
-
-// Anchor offsets from dino center (body landmarks)
-const A = {
-  neckL:   { dx:-70, dy:-60 },   // left side of neck
-  neckR:   { dx: 70, dy:-60 },   // right side
-  shoulderL:{ dx:-90, dy:-10 },  // left shoulder
-  shoulderR:{ dx: 90, dy:-10 },  // right shoulder
-  hipL:    { dx:-80, dy: 50 },   // left hip
-  hipR:    { dx: 80, dy: 50 },   // right hip
-  tailL:   { dx:-90, dy: 80 },   // tail left bolt
-  tailR:   { dx: 90, dy: 80 },   // tail right bolt
+// ── Piece definitions (coords for 380×500) ───────────────────────────────────
+// Each piece: pts (polygon), screw position (tap target), slide direction
+const PIECE_DEF = {
+  BODY: {
+    color:'#4ade80', stroke:'#15803d',
+    pts:[[100,170],[262,165],[270,190],[264,338],[214,350],[100,344],[65,260]],
+    screw:{x:162,y:256}, slideDir:{dx:0.1,dy:2.2}, z:0
+  },
+  DORSAL: {
+    color:'#fde68a', stroke:'#b45309',
+    pts:[[110,162],[150,110],[200,107],[250,162]],
+    screw:{x:178,y:133}, slideDir:{dx:-0.1,dy:-2.2}, z:1
+  },
+  TAIL: {
+    color:'#86efac', stroke:'#15803d',
+    pts:[[36,228],[102,190],[106,300],[36,272]],
+    screw:{x:67,y:243}, slideDir:{dx:-2.1,dy:0.4}, z:1
+  },
+  TAIL_FIN: {
+    color:'#fde68a', stroke:'#b45309',
+    pts:[[38,188],[88,198],[86,230],[38,230]],
+    screw:{x:61,y:210}, slideDir:{dx:-1.8,dy:-1.2}, z:2
+  },
+  ARM: {
+    color:'#fde68a', stroke:'#b45309',
+    pts:[[256,198],[314,198],[310,254],[256,254]],
+    screw:{x:282,y:224}, slideDir:{dx:1.9,dy:1.2}, z:1
+  },
+  HEAD: {
+    color:'#86efac', stroke:'#15803d',
+    pts:[[256,165],[318,118],[342,148],[336,175],[311,200],[256,198]],
+    screw:{x:295,y:168}, slideDir:{dx:1.9,dy:-0.6}, z:2
+  },
+  CREST: {
+    color:'#fde68a', stroke:'#b45309',
+    pts:[[264,162],[280,100],[318,94],[326,122],[302,162]],
+    screw:{x:298,y:128}, slideDir:{dx:0.6,dy:-2.2}, z:3
+  },
 };
 
-function anchor(key){ return { ax: DINO_X+A[key].dx, ay: DINO_Y+A[key].dy }; }
-
-// Level definitions
+// ── Level definitions ─────────────────────────────────────────────────────────
+// blockedBy uses PIECE_DEF keys — must be removed first
 const LEVELS = [
-  // 1 — 2 bolts, tutorial
-  { hint:'Pull the glowing bolts to free the dino!', pins:[
-    { id:0, ...anchor('shoulderL'), dir:'L', req:[] },
-    { id:1, ...anchor('shoulderR'), dir:'R', req:[] },
-  ]},
-  // 2 — 4 bolts, neck before hips
-  { hint:'Neck bolts must come out first!', pins:[
-    { id:0, ...anchor('neckL'),    dir:'L', req:[] },
-    { id:1, ...anchor('neckR'),    dir:'R', req:[] },
-    { id:2, ...anchor('hipL'),     dir:'L', req:[0] },
-    { id:3, ...anchor('hipR'),     dir:'R', req:[1] },
-  ]},
-  // 3 — 5 bolts, shoulders unlock hips, then tail
-  { hint:'Work from top to bottom!', pins:[
-    { id:0, ...anchor('shoulderL'), dir:'L', req:[] },
-    { id:1, ...anchor('shoulderR'), dir:'R', req:[] },
-    { id:2, ...anchor('hipL'),      dir:'L', req:[0] },
-    { id:3, ...anchor('hipR'),      dir:'R', req:[1] },
-    { id:4, ...anchor('tailL'),     dir:'D', req:[2,3] },
-  ]},
-  // 4 — 6 bolts with cross-dependency
-  { hint:'Some bolts need two others free first!', pins:[
-    { id:0, ...anchor('neckL'),     dir:'U', req:[] },
-    { id:1, ...anchor('neckR'),     dir:'U', req:[] },
-    { id:2, ...anchor('shoulderL'), dir:'L', req:[0] },
-    { id:3, ...anchor('shoulderR'), dir:'R', req:[1] },
-    { id:4, ...anchor('tailL'),     dir:'L', req:[2,3] },
-    { id:5, ...anchor('tailR'),     dir:'R', req:[2,3] },
-  ]},
-  // 5 — 8 bolts, full chain
-  { hint:'Final challenge — think it through!', pins:[
-    { id:0, ...anchor('neckL'),      dir:'L', req:[] },
-    { id:1, ...anchor('neckR'),      dir:'R', req:[] },
-    { id:2, ...anchor('shoulderL'),  dir:'L', req:[0] },
-    { id:3, ...anchor('shoulderR'),  dir:'R', req:[1] },
-    { id:4, ...anchor('hipL'),       dir:'L', req:[2] },
-    { id:5, ...anchor('hipR'),       dir:'R', req:[3] },
-    { id:6, ...anchor('tailL'),      dir:'D', req:[4,5] },
-    { id:7, ...anchor('tailR'),      dir:'D', req:[4,5] },
-  ]},
+  { hint:'Find the right unscrew order!',
+    pieces:['TAIL','HEAD','BODY'],
+    blocked:{TAIL:[],HEAD:[],BODY:['HEAD','TAIL']} },
+
+  { hint:'Think — one piece blocks another!',
+    pieces:['CREST','TAIL','HEAD','BODY'],
+    blocked:{CREST:[],TAIL:[],HEAD:['CREST'],BODY:['HEAD','TAIL']} },
+
+  { hint:'Follow the chain from top to bottom!',
+    pieces:['CREST','TAIL','HEAD','ARM','BODY'],
+    blocked:{CREST:[],TAIL:[],HEAD:['CREST'],ARM:['HEAD'],BODY:['ARM','TAIL']} },
+
+  { hint:'Two chains — unravel both!',
+    pieces:['CREST','TAIL_FIN','TAIL','HEAD','ARM','BODY'],
+    blocked:{CREST:[],TAIL_FIN:[],TAIL:['TAIL_FIN'],HEAD:['CREST'],ARM:['HEAD'],BODY:['ARM','TAIL']} },
+
+  { hint:'Master level — three starting points!',
+    pieces:['CREST','DORSAL','TAIL_FIN','TAIL','HEAD','ARM','BODY'],
+    blocked:{CREST:[],DORSAL:[],TAIL_FIN:[],TAIL:['TAIL_FIN'],HEAD:['CREST'],ARM:['HEAD'],BODY:['ARM','TAIL','DORSAL']} },
 ];
 
-// ── BOLT GEOMETRY ─────────────────────────────────────────────────────────────
-const BOLT_LEN   = 68;  // rod length
-const BOLT_R     = 6;   // rod radius
-const RING_R     = 18;  // ring outer radius
-const PULL_DIST  = 110; // total extraction distance
+// ── State ─────────────────────────────────────────────────────────────────────
+let pieces = [];    // active piece instances
+let particles = [];
+let levelIdx = 0;
+let phase = 'play'; // 'play' | 'jam' | 'win'
+let jamPiece = null;
+let jamTimer  = 0;
+let dinoFrame = 0;
+let canvasShake = 0;
+let hoverKey  = null;
 
-function boltGeom(pin){
-  const p = pin.prog * PULL_DIST;
-  const { ax, ay, dir } = pin;
-  let dx=0, dy=0;
-  if(dir==='L') dx=-1; if(dir==='R') dx=1;
-  if(dir==='U') dy=-1; if(dir==='D') dy=1;
-  // near end (outside, where ring is)
-  const nx = ax + dx*(BOLT_LEN/2 + p);
-  const ny = ay + dy*(BOLT_LEN/2 + p);
-  // far end (inside body)
-  const fx = ax - dx*(BOLT_LEN/2 - p);
-  const fy = ay - dy*(BOLT_LEN/2 - p);
-  // ring center (at near end)
-  const rx = ax + dx*(BOLT_LEN/2 + RING_R*0.5 + p);
-  const ry = ay + dy*(BOLT_LEN/2 + RING_R*0.5 + p);
-  return { nx,ny,fx,fy,rx,ry,dx,dy };
+// Piece instance: { key, def, state:'idle'|'unscrewing'|'sliding'|'gone', screwRot, prog, ox,oy, rot }
+function makePiece(key, def, blockedBy) {
+  return { key, def, blockedBy,
+    state:'idle', screwRot:0, prog:0, ox:0, oy:0, rot:0 };
 }
-
-// ── STATE ─────────────────────────────────────────────────────────────────────
-let pins=[], particles=[], levelIdx=0;
-let phase='play', breakProg=0, dinoFrame=0;
-let hoverPin=null;
 
 function loadLevel(idx){
   levelIdx = idx;
-  pins = LEVELS[idx].pins.map(p=>({...p, pulled:false, prog:0, animating:false}));
-  particles=[]; phase='play'; breakProg=0; hoverPin=null;
+  const lvl = LEVELS[idx];
+  pieces = lvl.pieces.map(k => makePiece(k, PIECE_DEF[k], lvl.blocked[k]||[]));
+  particles=[]; phase='play'; jamPiece=null; jamTimer=0; hoverKey=null; canvasShake=0;
   document.getElementById('lvl-badge').textContent = `Level ${idx+1} / ${LEVELS.length}`;
-  document.getElementById('hint').textContent = LEVELS[idx].hint;
+  document.getElementById('hint').textContent = lvl.hint;
 }
 
-function isFree(pin){
-  return !pin.pulled && !pin.animating &&
-    pin.req.every(id => pins.find(p=>p.id===id)?.pulled);
+function isFree(piece){
+  return piece.state==='idle' &&
+    piece.blockedBy.every(k => {
+      const p = pieces.find(p=>p.key===k);
+      return !p || p.state==='gone';
+    });
 }
 
-// ── DRAWING ───────────────────────────────────────────────────────────────────
+// ── Drawing ───────────────────────────────────────────────────────────────────
 function drawBG(){
-  // Stone/dungeon floor
   const g = ctx.createLinearGradient(0,0,0,CH);
-  g.addColorStop(0,'#141b2d'); g.addColorStop(1,'#0a0f1a');
+  g.addColorStop(0,'#141c2d'); g.addColorStop(1,'#090f1a');
   ctx.fillStyle=g; ctx.fillRect(0,0,CW,CH);
 
-  // Stone tile grid
-  ctx.strokeStyle='rgba(255,255,255,0.04)'; ctx.lineWidth=1;
-  for(let x=0;x<CW;x+=50){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,CH); ctx.stroke(); }
-  for(let y=0;y<CH;y+=50){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(CW,y); ctx.stroke(); }
+  // Workshop table lines
+  ctx.strokeStyle='rgba(255,255,255,0.035)'; ctx.lineWidth=1;
+  for(let x=0;x<CW;x+=40){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,CH);ctx.stroke();}
+  for(let y=0;y<CH;y+=40){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(CW,y);ctx.stroke();}
 
-  // Central platform
-  const px=CW/2-130, py=DINO_Y-120, pw=260, ph=320;
-  const pg = ctx.createLinearGradient(px,py,px,py+ph);
-  pg.addColorStop(0,'rgba(60,50,30,0.7)'); pg.addColorStop(1,'rgba(30,25,15,0.7)');
-  rrect(px,py,pw,ph,12); ctx.fillStyle=pg; ctx.fill();
-  ctx.strokeStyle='rgba(150,110,50,0.3)'; ctx.lineWidth=1.5; ctx.stroke();
+  // Central workbench platform
+  const px=55,py=88,pw=CW-110,ph=CH-150;
+  const pg=ctx.createLinearGradient(px,py,px,py+ph);
+  pg.addColorStop(0,'rgba(50,40,22,0.75)'); pg.addColorStop(1,'rgba(25,18,8,0.75)');
+  roundRect(px,py,pw,ph,14); ctx.fillStyle=pg; ctx.fill();
+  ctx.strokeStyle='rgba(180,130,50,0.22)'; ctx.lineWidth=1.5; ctx.stroke();
 
-  // Wood grain lines on platform
-  ctx.strokeStyle='rgba(0,0,0,0.2)'; ctx.lineWidth=1;
-  for(let gy=py+10;gy<py+ph-10;gy+=18){
-    ctx.beginPath(); ctx.moveTo(px+6,gy); ctx.lineTo(px+pw-6,gy); ctx.stroke();
+  // Wood grain
+  ctx.strokeStyle='rgba(0,0,0,0.18)'; ctx.lineWidth=1;
+  for(let gy=py+14;gy<py+ph-14;gy+=16){
+    ctx.beginPath();ctx.moveTo(px+8,gy);ctx.lineTo(px+pw-8,gy);ctx.stroke();
   }
 }
 
-function drawDino(freed){
-  ctx.save();
-  if(freed){
-    const bounce = Math.sin(dinoFrame*0.13)*18;
-    const spin   = Math.sin(dinoFrame*0.09)*0.25;
-    ctx.translate(DINO_X, DINO_Y - 20 + bounce);
-    ctx.rotate(spin);
-  } else {
-    ctx.translate(DINO_X, DINO_Y);
-    // Shake slightly when all bolts are being removed
-    const remaining = pins.filter(p=>!p.pulled).length;
-    if(remaining <= 1 && phase==='play'){
-      ctx.translate(Math.sin(dinoFrame*0.4)*2, 0);
-    }
-  }
-  ctx.font='90px serif';
-  ctx.textAlign='center'; ctx.textBaseline='middle';
+function roundRect(x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.arcTo(x+w,y,x+w,y+r,r);
+  ctx.lineTo(x+w,y+h-r);ctx.arcTo(x+w,y+h,x+w-r,y+h,r);
+  ctx.lineTo(x+r,y+h);ctx.arcTo(x,y+h,x,y+h-r,r);
+  ctx.lineTo(x,y+r);ctx.arcTo(x,y,x+r,y,r);
+  ctx.closePath();
+}
 
-  // Shadow under dino
-  ctx.shadowColor='rgba(0,0,0,0.6)'; ctx.shadowBlur=20; ctx.shadowOffsetY=8;
-  ctx.fillText('🦖', 0, 0);
+function polyPath(pts){
+  ctx.beginPath();
+  ctx.moveTo(pts[0][0],pts[0][1]);
+  for(let i=1;i<pts.length;i++) ctx.lineTo(pts[i][0],pts[i][1]);
+  ctx.closePath();
+}
+
+function drawPiece(piece){
+  if(piece.state==='gone') return;
+  const {def,state,prog,ox,oy,rot} = piece;
+  const jam = phase==='jam' && piece===jamPiece;
+  const free = isFree(piece);
+
+  ctx.save();
+
+  // Translate for slide animation
+  if(state==='sliding'){
+    const eased = 1 - Math.pow(1-prog,2); // ease-in
+    ctx.translate(def.slideDir.dx*eased*460, def.slideDir.dy*eased*460);
+    ctx.translate(ox,oy);
+    ctx.rotate(rot);
+    ctx.globalAlpha = Math.max(0, 1 - prog*1.3);
+  }
+
+  // JAM flash: red tint
+  if(jam && Math.floor(jamTimer/8)%2===0){
+    ctx.globalAlpha=0.25;
+    polyPath(def.pts);
+    ctx.fillStyle='#ef4444'; ctx.fill();
+    ctx.restore(); return; // flash on/off
+  }
+
+  // Draw polygon
+  polyPath(def.pts);
+
+  // Shadow
+  ctx.shadowColor='rgba(0,0,0,0.55)'; ctx.shadowBlur=12; ctx.shadowOffsetY=4;
+  ctx.fillStyle=def.color; ctx.fill();
   ctx.shadowBlur=0; ctx.shadowOffsetY=0;
+
+  // Border
+  ctx.strokeStyle=def.stroke; ctx.lineWidth=2.5; ctx.stroke();
+
+  // Inner highlight (top edge)
+  ctx.strokeStyle='rgba(255,255,255,0.18)'; ctx.lineWidth=1.5;
+  polyPath(def.pts); ctx.stroke();
+
+  // Free piece glow
+  if(free && state==='idle'){
+    ctx.shadowColor='rgba(251,191,36,0.4)'; ctx.shadowBlur=18;
+    polyPath(def.pts); ctx.strokeStyle='rgba(251,191,36,0.45)'; ctx.lineWidth=2; ctx.stroke();
+    ctx.shadowBlur=0;
+  }
+
   ctx.restore();
+
+  // Eye on head piece
+  if(piece.key==='HEAD' && state==='idle'){
+    ctx.save();
+    ctx.beginPath(); ctx.arc(318,148,6,0,Math.PI*2);
+    ctx.fillStyle='#fff'; ctx.fill();
+    ctx.beginPath(); ctx.arc(319,149,3,0,Math.PI*2);
+    ctx.fillStyle='#1e1b4b'; ctx.fill();
+    ctx.restore();
+  }
 }
 
-function drawBolt(pin){
-  if(pin.pulled && pin.prog>=1) return;
-  const free = isFree(pin);
-  const hov  = free && pin===hoverPin;
-  const { nx,ny,fx,fy,rx,ry,dx,dy } = boltGeom(pin);
+function drawScrew(piece){
+  if(piece.state==='gone'||piece.state==='sliding') return;
+  const {def,state,screwRot} = piece;
+  const jam  = phase==='jam' && piece===jamPiece;
+  const free = isFree(piece);
+  const hov  = hoverKey===piece.key && free;
+  const {x,y} = def.screw;
 
   ctx.save();
 
-  // ── Rod ──────────────────────────────────────────────────────────────────
-  const horiz = (pin.dir==='L'||pin.dir==='R');
-  const rodLen = Math.hypot(nx-fx, ny-fy);
-
-  // Draw rod as thick line
-  ctx.lineCap='round';
-  ctx.lineWidth = BOLT_R*2;
-
-  const rodGrad = horiz
-    ? ctx.createLinearGradient(fx,fy-BOLT_R,fx,fy+BOLT_R)
-    : ctx.createLinearGradient(fx-BOLT_R,fy,fx+BOLT_R,fy);
-
+  // Outer ring shadow / glow
   if(free){
-    rodGrad.addColorStop(0,'#9ca3af');
-    rodGrad.addColorStop(0.4,'#e2e8f0');
-    rodGrad.addColorStop(0.6,'#d1d5db');
-    rodGrad.addColorStop(1,'#6b7280');
-  } else {
-    rodGrad.addColorStop(0,'#374151');
-    rodGrad.addColorStop(0.5,'#4b5563');
-    rodGrad.addColorStop(1,'#1f2937');
+    ctx.shadowColor = hov?'#fbbf24':'rgba(251,191,36,0.4)';
+    ctx.shadowBlur  = hov?22:12;
   }
 
-  if(free){ ctx.shadowColor=hov?'rgba(251,191,36,0.7)':'rgba(251,191,36,0.3)'; ctx.shadowBlur=hov?20:10; }
-
-  ctx.strokeStyle = rodGrad;
-  ctx.beginPath(); ctx.moveTo(fx,fy); ctx.lineTo(nx,ny); ctx.stroke();
-
-  // Thread grooves
+  // Outer ring
+  const rg = ctx.createRadialGradient(x-5,y-5,1,x,y,15);
   if(free){
-    ctx.shadowBlur=0;
-    ctx.strokeStyle='rgba(0,0,0,0.25)'; ctx.lineWidth=1.5;
-    const steps = Math.floor(rodLen/10);
-    for(let i=1;i<steps;i++){
-      const t=i/steps;
-      const gx=fx+dx*t*rodLen*(-1), gy=fy+dy*t*rodLen*(-1);
-      // perpendicular tick
-      ctx.beginPath();
-      ctx.moveTo(gx-dy*BOLT_R, gy+dx*BOLT_R);
-      ctx.lineTo(gx+dy*BOLT_R, gy-dx*BOLT_R);
-      ctx.stroke();
-    }
-  }
-
-  // Anchor plate (where bolt goes through platform)
-  ctx.shadowBlur=0;
-  const plateCol = free ? '#78716c' : '#3f3f46';
-  ctx.fillStyle = plateCol;
-  ctx.strokeStyle = 'rgba(0,0,0,0.4)'; ctx.lineWidth=1;
-  if(horiz){
-    rrect(pin.ax-5, pin.ay-BOLT_R-4, 10, BOLT_R*2+8, 3);
+    rg.addColorStop(0,'#e5e7eb'); rg.addColorStop(0.5,'#9ca3af'); rg.addColorStop(1,'#4b5563');
   } else {
-    rrect(pin.ax-BOLT_R-4, pin.ay-5, BOLT_R*2+8, 10, 3);
+    rg.addColorStop(0,'#3f3f46'); rg.addColorStop(1,'#18181b');
   }
-  ctx.fill(); ctx.stroke();
-
-  // ── Ring handle ──────────────────────────────────────────────────────────
-  ctx.shadowColor = free ? (hov ? '#fbbf24' : 'rgba(251,191,36,0.5)') : 'transparent';
-  ctx.shadowBlur  = free ? (hov ? 24 : 12) : 0;
-
-  const ringFill = ctx.createRadialGradient(rx-RING_R*0.3,ry-RING_R*0.3,RING_R*0.1,rx,ry,RING_R);
-  if(free){
-    ringFill.addColorStop(0, hov?'#fde68a':'#fcd34d');
-    ringFill.addColorStop(1, hov?'#f59e0b':'#d97706');
-  } else {
-    ringFill.addColorStop(0,'#52525b');
-    ringFill.addColorStop(1,'#27272a');
-  }
-
-  // Ring body
-  ctx.beginPath(); ctx.arc(rx,ry,RING_R,0,Math.PI*2);
-  ctx.fillStyle=ringFill; ctx.fill();
-  ctx.strokeStyle='rgba(0,0,0,0.35)'; ctx.lineWidth=2; ctx.stroke();
-
-  // Inner hole
-  ctx.globalCompositeOperation='destination-out';
-  ctx.beginPath(); ctx.arc(rx,ry,RING_R*0.52,0,Math.PI*2);
-  ctx.fillStyle='rgba(0,0,0,1)'; ctx.fill();
-  ctx.globalCompositeOperation='source-over';
-
-  // Re-draw ring border to clean up
-  ctx.beginPath(); ctx.arc(rx,ry,RING_R,0,Math.PI*2);
-  ctx.strokeStyle=free?(hov?'#fbbf24':'#f59e0b'):'#3f3f46';
-  ctx.lineWidth=2.5; ctx.stroke();
-
+  ctx.beginPath(); ctx.arc(x,y,14,0,Math.PI*2);
+  ctx.fillStyle=rg; ctx.fill();
+  ctx.strokeStyle=free?'rgba(0,0,0,0.3)':'rgba(0,0,0,0.5)';
+  ctx.lineWidth=1.5; ctx.stroke();
   ctx.shadowBlur=0;
 
-  // Arrow indicator on free bolts
-  if(free){
-    const arrowX = rx + dx*26, arrowY = ry + dy*26;
-    ctx.fillStyle = hov ? '#fbbf24' : 'rgba(251,191,36,0.7)';
-    ctx.font = '16px serif';
-    ctx.textAlign='center'; ctx.textBaseline='middle';
-    const arrows = { L:'←', R:'→', U:'↑', D:'↓' };
-    ctx.fillText(arrows[pin.dir], arrowX, arrowY);
-  }
+  // Inner ring
+  ctx.beginPath(); ctx.arc(x,y,9,0,Math.PI*2);
+  ctx.fillStyle=free?'#6b7280':'#27272a'; ctx.fill();
 
-  // Lock icon for locked bolts
-  if(!free && !pin.pulled){
-    ctx.fillStyle='rgba(255,255,255,0.25)';
-    ctx.font='11px serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.shadowBlur=0;
-    ctx.fillText('🔒', rx, ry+1);
+  // Phillips cross (rotates when unscrewing)
+  ctx.save(); ctx.translate(x,y);
+  ctx.rotate(screwRot + (state==='unscrewing'? screwRot*0.3 : 0));
+  const crossColor = free?'rgba(255,255,255,0.7)':'rgba(255,255,255,0.2)';
+  ctx.fillStyle=crossColor;
+  ctx.fillRect(-6.5,-2,13,4);   // horizontal bar
+  ctx.fillRect(-2,-6.5,4,13);   // vertical bar
+  ctx.restore();
+
+  // Glint
+  ctx.beginPath(); ctx.arc(x-5,y-5,3.5,0,Math.PI*2);
+  ctx.fillStyle='rgba(255,255,255,0.35)'; ctx.fill();
+
+  // Lock icon overlay for locked screws
+  if(!free && state==='idle'){
+    ctx.font='10px serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillStyle='rgba(255,200,100,0.5)';
+    ctx.fillText('🔒',x,y+1);
   }
 
   ctx.restore();
 }
 
-// ── PARTICLES ─────────────────────────────────────────────────────────────────
-function addSparks(x,y){
-  const cols=['#fbbf24','#f97316','#ef4444','#fde68a'];
-  for(let i=0;i<14;i++){
-    const a=Math.random()*Math.PI*2, s=2+Math.random()*5;
+// ── Ghost outline (faded dino silhouette) ─────────────────────────────────────
+function drawGhost(){
+  const allPts = [
+    ...PIECE_DEF.BODY.pts, ...PIECE_DEF.HEAD.pts, ...PIECE_DEF.TAIL.pts
+  ];
+  // Just draw each piece def as ghost (the ones in current level)
+  const lvl = LEVELS[levelIdx];
+  ctx.save(); ctx.globalAlpha=0.06;
+  for(const k of lvl.pieces){
+    const def=PIECE_DEF[k];
+    polyPath(def.pts);
+    ctx.fillStyle='#fff'; ctx.fill();
+  }
+  ctx.restore();
+}
+
+// ── Particles ─────────────────────────────────────────────────────────────────
+function addScrewSparks(x,y){
+  const cols=['#fbbf24','#f97316','#fde68a','#ef4444'];
+  for(let i=0;i<16;i++){
+    const a=Math.random()*Math.PI*2,s=1.5+Math.random()*5;
     particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-1,
-      r:1.5+Math.random()*3, color:cols[i%cols.length], life:1, decay:0.04+Math.random()*0.04});
+      r:1+Math.random()*3,color:cols[i%4],life:1,decay:0.04+Math.random()*0.04});
   }
 }
 function addConfetti(){
   const cols=['#4ade80','#ffd166','#ff6b6b','#4cc9f0','#a78bfa','#fbbf24'];
-  for(let i=0;i<70;i++){
-    const a=Math.random()*Math.PI*2, s=3+Math.random()*8;
+  for(let i=0;i<80;i++){
+    const a=Math.random()*Math.PI*2,s=2+Math.random()*9;
     particles.push({x:CW/2,y:CH/2,vx:Math.cos(a)*s,vy:Math.sin(a)*s-3,
-      r:2+Math.random()*6, color:cols[i%cols.length], life:1, decay:0.018+Math.random()*0.018});
+      r:2+Math.random()*7,color:cols[i%6],life:1,decay:0.015+Math.random()*0.02});
   }
 }
 function tickParticles(){
   for(let i=particles.length-1;i>=0;i--){
     const p=particles[i];
-    p.x+=p.vx; p.y+=p.vy; p.vy+=0.25; p.life-=p.decay;
-    if(p.life<=0) particles.splice(i,1);
+    p.x+=p.vx;p.y+=p.vy;p.vy+=0.28;p.life-=p.decay;
+    if(p.life<=0)particles.splice(i,1);
   }
 }
 function drawParticles(){
   for(const p of particles){
-    ctx.save(); ctx.globalAlpha=Math.max(0,p.life);
+    ctx.save();ctx.globalAlpha=Math.max(0,p.life);
     ctx.fillStyle=p.color;
-    ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill();
+    ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill();
     ctx.restore();
   }
 }
 
-// ── WIN OVERLAY ───────────────────────────────────────────────────────────────
+// ── JAM overlay ───────────────────────────────────────────────────────────────
+function drawJamOverlay(){
+  ctx.save();
+  ctx.fillStyle='rgba(0,0,0,0.65)'; ctx.fillRect(0,0,CW,CH);
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+
+  ctx.font='bold 46px system-ui';
+  ctx.fillStyle='#ef4444';
+  ctx.shadowColor='#ef4444'; ctx.shadowBlur=30;
+  ctx.fillText('⚠️ JAMMED!', CW/2, CH/2-55);
+  ctx.shadowBlur=0;
+
+  ctx.font='16px system-ui'; ctx.fillStyle='rgba(255,255,255,0.55)';
+  ctx.fillText('Wrong order — pieces jammed together', CW/2, CH/2-8);
+
+  const bx=CW/2-70,by=CH/2+18,bw=140,bh=46;
+  roundRect(bx,by,bw,bh,23);
+  const bg=ctx.createLinearGradient(bx,by,bx+bw,by);
+  bg.addColorStop(0,'#ef4444'); bg.addColorStop(1,'#dc2626');
+  ctx.fillStyle=bg; ctx.fill();
+  ctx.font='bold 15px system-ui'; ctx.fillStyle='#fff';
+  ctx.fillText('↺ Try Again', CW/2, by+bh/2+1);
+  ctx.restore();
+}
+
+// ── WIN overlay ───────────────────────────────────────────────────────────────
 function drawWinOverlay(){
   ctx.save();
   ctx.fillStyle='rgba(0,0,0,0.55)'; ctx.fillRect(0,0,CW,CH);
   ctx.textAlign='center'; ctx.textBaseline='middle';
 
-  ctx.font='bold 36px system-ui';
-  ctx.fillStyle='#4ade80';
-  ctx.shadowColor='#4ade80'; ctx.shadowBlur=20;
+  ctx.font='bold 38px system-ui';
+  ctx.fillStyle='#4ade80'; ctx.shadowColor='#4ade80'; ctx.shadowBlur=22;
   ctx.fillText('🎉 Dino Freed!', CW/2, CH/2-62);
   ctx.shadowBlur=0;
 
-  const last = levelIdx>=LEVELS.length-1;
+  const last=levelIdx>=LEVELS.length-1;
   ctx.font='16px system-ui'; ctx.fillStyle='rgba(255,255,255,0.6)';
-  ctx.fillText(last?'🏆 You beat all 5 levels!':`Level ${levelIdx+1} complete!`, CW/2, CH/2-22);
+  ctx.fillText(last?'🏆 All levels complete!':(`Level ${levelIdx+1} complete!`), CW/2, CH/2-22);
 
-  const bx=CW/2-80, by=CH/2+4, bw=160, bh=46;
+  const bx=CW/2-78,by=CH/2+6,bw=156,bh=46;
+  roundRect(bx,by,bw,bh,23);
   const bg=ctx.createLinearGradient(bx,by,bx+bw,by);
   bg.addColorStop(0,'#4ade80'); bg.addColorStop(1,'#22d3ee');
-  rrect(bx,by,bw,bh,23); ctx.fillStyle=bg; ctx.fill();
-
+  ctx.fillStyle=bg; ctx.fill();
   ctx.font='bold 15px system-ui'; ctx.fillStyle='#0a1f0a';
-  ctx.fillText(last?'▶ Play Again':`▶ Next Level`, CW/2, by+bh/2+1);
+  ctx.fillText(last?'▶ Play Again':'▶ Next Level', CW/2, by+bh/2+1);
   ctx.restore();
 }
 
-// ── MAIN LOOP ─────────────────────────────────────────────────────────────────
+// ── Main loop ─────────────────────────────────────────────────────────────────
+const SCREW_FRAMES = 48;
+const SLIDE_FRAMES = 42;
+
 function loop(){
   dinoFrame++;
 
-  // Animate bolt pulling
-  for(const pin of pins){
-    if(pin.animating){
-      pin.prog = Math.min(1, pin.prog+0.055);
-      if(pin.prog>=1){ pin.animating=false; pin.pulled=true; }
+  // Advance piece animations
+  for(const p of pieces){
+    if(p.state==='unscrewing'){
+      p.prog = Math.min(1, p.prog + 1/SCREW_FRAMES);
+      p.screwRot += 0.22;
+      if(p.prog>=1){
+        p.state='sliding'; p.prog=0;
+        addScrewSparks(p.def.screw.x, p.def.screw.y);
+      }
+    } else if(p.state==='sliding'){
+      p.prog = Math.min(1, p.prog + 1/SLIDE_FRAMES);
+      p.rot  = p.def.slideDir.dx * p.prog * 0.45;
+      if(p.prog>=1){ p.state='gone'; }
     }
   }
 
-  // All bolts removed → celebrate
-  if(phase==='play' && pins.every(p=>p.pulled)){
-    phase='win';
-    addConfetti();
+  // JAM countdown
+  if(phase==='jam'){
+    jamTimer++;
+    canvasShake = Math.max(0, canvasShake - 0.5);
+  }
+
+  // Check win
+  if(phase==='play' && pieces.every(p=>p.state==='gone')){
+    phase='win'; addConfetti();
   }
 
   tickParticles();
 
-  // Draw
-  drawBG();
-  drawDino(phase==='win');
-  if(phase==='play') for(const pin of pins) drawBolt(pin);
-  drawParticles();
-  if(phase==='win') drawWinOverlay();
+  // Canvas shake
+  const sx = canvasShake>0 ? (Math.random()-0.5)*canvasShake : 0;
+  const sy = canvasShake>0 ? (Math.random()-0.5)*canvasShake : 0;
+  ctx.save(); ctx.translate(sx,sy);
 
+  drawBG();
+  drawGhost();
+
+  // Sort by z-order, draw pieces back to front
+  const sorted = [...pieces].sort((a,b)=>a.def.z-b.def.z);
+  for(const p of sorted) drawPiece(p);
+  for(const p of sorted) drawScrew(p);
+
+  drawParticles();
+  if(phase==='jam')  drawJamOverlay();
+  if(phase==='win')  drawWinOverlay();
+
+  ctx.restore();
   requestAnimationFrame(loop);
 }
 
-// ── INPUT ─────────────────────────────────────────────────────────────────────
+// ── Input ─────────────────────────────────────────────────────────────────────
 function toGame(cx,cy){
   const r=canvas.getBoundingClientRect();
   return {gx:(cx-r.left)/scale, gy:(cy-r.top)/scale};
 }
-function hitBolt(gx,gy){
-  for(const pin of pins){
-    if(pin.pulled||pin.animating) continue;
-    const {rx,ry}=boltGeom(pin);
-    if(Math.hypot(rx-gx,ry-gy)<RING_R+12) return pin;
+
+function hitScrew(gx,gy){
+  for(const p of pieces){
+    if(p.state!=='idle') continue;
+    if(Math.hypot(p.def.screw.x-gx, p.def.screw.y-gy)<20) return p;
   }
   return null;
 }
 
-canvas.addEventListener('mousemove', e=>{
+canvas.addEventListener('mousemove',e=>{
   const {gx,gy}=toGame(e.clientX,e.clientY);
-  const h=hitBolt(gx,gy);
-  hoverPin=(h&&isFree(h))?h:null;
-  canvas.style.cursor=hoverPin?'grab':'default';
+  const h=hitScrew(gx,gy);
+  hoverKey=(h&&isFree(h))?h.key:null;
+  canvas.style.cursor=hoverKey?'grab':'default';
 });
 
 function handleTap(cx,cy){
   const {gx,gy}=toGame(cx,cy);
+
+  if(phase==='jam'){
+    // Try again button
+    const bx=CW/2-70,by=CH/2+18,bw=140,bh=46;
+    if(gx>bx&&gx<bx+bw&&gy>by&&gy<by+bh) loadLevel(levelIdx);
+    return;
+  }
+
   if(phase==='win'){
-    const bx=CW/2-80,by=CH/2+4,bw=160,bh=46;
+    const bx=CW/2-78,by=CH/2+6,bw=156,bh=46;
     if(gx>bx&&gx<bx+bw&&gy>by&&gy<by+bh){
       loadLevel(levelIdx>=LEVELS.length-1?0:levelIdx+1);
     }
     return;
   }
-  const pin=hitBolt(gx,gy);
-  if(pin&&isFree(pin)){
-    pin.animating=true;
-    addSparks(pin.ax,pin.ay);
+
+  const p=hitScrew(gx,gy);
+  if(!p) return;
+
+  if(isFree(p)){
+    p.state='unscrewing'; p.prog=0;
+  } else {
+    // JAM!
+    phase='jam'; jamPiece=p; jamTimer=0; canvasShake=9;
   }
 }
 
-canvas.addEventListener('click', e=>handleTap(e.clientX,e.clientY));
-canvas.addEventListener('touchend', e=>{
+canvas.addEventListener('click',e=>handleTap(e.clientX,e.clientY));
+canvas.addEventListener('touchend',e=>{
   e.preventDefault();
-  handleTap(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+  handleTap(e.changedTouches[0].clientX,e.changedTouches[0].clientY);
 },{passive:false});
 
 document.getElementById('restart').addEventListener('click',()=>loadLevel(levelIdx));
 
+// ── Start ─────────────────────────────────────────────────────────────────────
 loadLevel(0);
 requestAnimationFrame(loop);
 </script>
