@@ -40,7 +40,7 @@
       grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
       gap: 16px;
       width: 100%;
-      max-width: 560px;
+      max-width: 680px;
     }
     .card {
       background: linear-gradient(135deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
@@ -64,6 +64,8 @@
     .card.stack:hover  { border-color: rgba(167,139,250,0.5); box-shadow: 0 20px 40px rgba(167,139,250,0.15); }
     .card.gem:hover    { border-color: rgba(244,114,182,0.5); box-shadow: 0 20px 40px rgba(244,114,182,0.15); }
     .card.sort:hover   { border-color: rgba(74,222,128,0.5);  box-shadow: 0 20px 40px rgba(74,222,128,0.15); }
+    .card.flap:hover   { border-color: rgba(255,209,102,0.5); box-shadow: 0 20px 40px rgba(255,209,102,0.15); }
+    .card.queen:hover  { border-color: rgba(167,139,250,0.5); box-shadow: 0 20px 40px rgba(167,139,250,0.15); }
 
     .card-icon { font-size: 46px; line-height: 1; }
     .card-title { font-size: 20px; font-weight: 800; letter-spacing: -0.3px; }
@@ -73,6 +75,8 @@
     .card.stack .card-title { color: #a78bfa; }
     .card.gem   .card-title { color: #f472b6; }
     .card.sort  .card-title { color: #4ade80; }
+    .card.flap  .card-title { color: #ffd166; }
+    .card.queen .card-title { color: #a78bfa; }
 
     .card-desc { font-size: 12px; opacity: 0.52; line-height: 1.6; }
     .card-tag {
@@ -85,6 +89,8 @@
     .card.stack .card-tag { background: rgba(167,139,250,0.15); color: #a78bfa; }
     .card.gem   .card-tag { background: rgba(244,114,182,0.15); color: #f472b6; }
     .card.sort  .card-tag { background: rgba(74,222,128,0.15);  color: #4ade80; }
+    .card.flap  .card-tag { background: rgba(255,209,102,0.15); color: #ffd166; }
+    .card.queen .card-tag { background: rgba(167,139,250,0.15); color: #a78bfa; }
 
     .play-btn {
       margin-top: 6px; padding: 9px 0;
@@ -96,6 +102,8 @@
     .card.stack .play-btn { background: rgba(167,139,250,0.15); color: #a78bfa; }
     .card.gem   .play-btn { background: rgba(244,114,182,0.15); color: #f472b6; }
     .card.sort  .play-btn { background: rgba(74,222,128,0.15);  color: #4ade80; }
+    .card.flap  .play-btn { background: rgba(255,209,102,0.15); color: #ffd166; }
+    .card.queen .play-btn { background: rgba(167,139,250,0.15); color: #a78bfa; }
     .card:hover .play-btn { filter: brightness(1.3); }
   </style>
 </head>
@@ -141,6 +149,22 @@
       <div class="card-title">2048</div>
       <div class="card-desc">Slide tiles and merge numbers to reach the 2048 tile. Simple rules, deep strategy!</div>
       <div class="card-tag">CLASSIC · STRATEGY</div>
+      <div class="play-btn">▶ Play Now</div>
+    </a>
+
+    <a class="card flap" href="flappy.html">
+      <div class="card-icon">🐦</div>
+      <div class="card-title">Flappy Bird</div>
+      <div class="card-desc">Tap to fly through the gaps! Classic endless arcade — how far can you go?</div>
+      <div class="card-tag">ARCADE · ENDLESS</div>
+      <div class="play-btn">▶ Play Now</div>
+    </a>
+
+    <a class="card queen" href="queens.html">
+      <div class="card-icon">👑</div>
+      <div class="card-title">Queens</div>
+      <div class="card-desc">Place one queen per row, column and color region. No two queens can touch!</div>
+      <div class="card-tag">LOGIC · TRENDING</div>
       <div class="play-btn">▶ Play Now</div>
     </a>
   </div>

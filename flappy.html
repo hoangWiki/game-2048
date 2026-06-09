@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="theme-color" content="#0d1b2a"/>
+<title>Flappy Bird</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:#0d1b2a;min-height:100vh;display:flex;flex-direction:column;align-items:center;
+  font-family:'Segoe UI',system-ui,sans-serif;color:#fff;padding:8px 12px 32px;
+  user-select:none;-webkit-user-select:none}
+a.back{position:fixed;top:12px;left:12px;background:rgba(255,255,255,.1);
+  border:1px solid rgba(255,255,255,.2);color:#fff;text-decoration:none;
+  padding:6px 14px;border-radius:8px;font-size:13px;font-weight:600;z-index:100}
+h1{font-size:clamp(20px,5vw,26px);font-weight:800;
+  background:linear-gradient(90deg,#ffd166,#ff9f1c);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  margin:2px 0 8px}
+canvas{border-radius:16px;display:block;touch-action:none;
+  border:1px solid rgba(255,255,255,.1)}
+.hint{margin-top:10px;font-size:12px;opacity:.38;text-align:center}
+</style>
+</head>
+<body>
+<a class="back" href="index.html">← Games</a>
+<h1>🐦 Flappy Bird</h1>
+<canvas id="canvas"></canvas>
+<p class="hint">Tap or click anywhere to fly!</p>
+<script>
+const canvas=document.getElementById('canvas');
+const ctx=canvas.getContext('2d');
+const CW=360,CH=580;
+let scale=1;
+function resize(){
+  const a=Math.min(window.innerWidth-24,420);
+  scale=a/CW;
+  canvas.width=CW*scale;canvas.height=CH*scale;
+  ctx.setTransform(scale,0,0,scale,0,0);
+}
+resize();window.addEventListener('resize',resize);
+
+const BIRD_X=80,BIRD_R=14;
+const GRAVITY=0.44;
+const JUMP_VY=-9;
+const PIPE_W=56;
+const PIPE_GAP=148;
+const FLOOR_Y=CH-58;
+
+let state='wait';
+let bird,pipes,parts,score,best,pipeSpd,nextPipe,wingT;
+best=+(localStorage.getItem('fb-best')||0);
+
+let stars=[];
+for(let i=0;i<55;i++)stars.push({x:Math.random()*CW,y:Math.random()*(FLOOR_Y-30),
+  r:.4+Math.random()*1.4,t:Math.random()*6.28,spd:.008+Math.random()*.018});
+
+function reset(){
+  bird={y:CH/2,vy:0,angle:0};
+  pipes=[];parts=[];score=0;pipeSpd=2.4;nextPipe=80;wingT=0;
+}
+
+function jump(){
+  if(state==='wait'){state='play';bird.vy=JUMP_VY;return;}
+  if(state==='play'){bird.vy=JUMP_VY;}
+  if(state==='dead'){state='wait';reset();}
+}
+
+function spawnPipe(){
+  const minGapY=60,maxGapY=FLOOR_Y-PIPE_GAP-60;
+  pipes.push({x:CW+PIPE_W,gapY:minGapY+Math.random()*(maxGapY-minGapY),done:false});
+}
+
+function addParticles(x,y,cols,n){
+  for(let i=0;i<n;i++){
+    const a=Math.random()*Math.PI*2,spd=1+Math.random()*4;
+    parts.push({x,y,vx:Math.cos(a)*spd,vy:Math.sin(a)*spd-.5,
+      r:2+Math.random()*3,col:cols[Math.floor(Math.random()*cols.length)],a:1,da:.025+Math.random()*.02});
+  }
+}
+
+function update(){
+  if(state!=='play')return;
+  wingT+=0.28;
+  bird.vy+=GRAVITY;bird.y+=bird.vy;
+  bird.angle=Math.max(-.5,Math.min(1.3,bird.vy*.08));
+  nextPipe--;
+  if(nextPipe<=0){spawnPipe();nextPipe=Math.max(60,88-Math.floor(score/5)*3);}
+  for(const p of pipes){
+    p.x-=pipeSpd;
+    if(!p.done&&p.x+PIPE_W<BIRD_X){
+      p.done=true;score++;
+      if(score>best){best=score;localStorage.setItem('fb-best',best);}
+      if(score%5===0)pipeSpd=Math.min(4.6,pipeSpd+.14);
+    }
+  }
+  pipes=pipes.filter(p=>p.x>-PIPE_W-5);
+  // Collision
+  const cr=BIRD_R-2;
+  for(const p of pipes){
+    if(BIRD_X+cr>p.x&&BIRD_X-cr<p.x+PIPE_W){
+      if(bird.y-cr<p.gapY||bird.y+cr>p.gapY+PIPE_GAP){die();return;}
+    }
+  }
+  if(bird.y+cr>FLOOR_Y||bird.y-cr<0){die();return;}
+  for(const pt of parts){pt.x+=pt.vx;pt.y+=pt.vy;pt.vy+=.12;pt.a-=pt.da;}
+  parts=parts.filter(p=>p.a>0);
+}
+
+function die(){
+  state='dead';
+  addParticles(BIRD_X,bird.y,['#ffd166','#ff9f1c','#ff6b6b'],22);
+}
+
+function drawBg(){
+  const g=ctx.createLinearGradient(0,0,0,FLOOR_Y);
+  g.addColorStop(0,'#0d1b2a');g.addColorStop(.7,'#162436');g.addColorStop(1,'#0d1e30');
+  ctx.fillStyle=g;ctx.fillRect(0,0,CW,CH);
+  // Stars
+  for(const s of stars){
+    s.t+=s.spd;
+    ctx.globalAlpha=.3+.45*Math.abs(Math.sin(s.t));
+    ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+    ctx.fillStyle='#fff';ctx.fill();
+  }
+  ctx.globalAlpha=1;
+  // Moon
+  ctx.beginPath();ctx.arc(CW-50,38,22,0,Math.PI*2);
+  const mg=ctx.createRadialGradient(CW-54,34,2,CW-50,38,22);
+  mg.addColorStop(0,'#fffde7');mg.addColorStop(.6,'#fff9c4');mg.addColorStop(1,'rgba(255,245,157,0)');
+  ctx.fillStyle=mg;ctx.fill();
+  // Floor
+  const fg=ctx.createLinearGradient(0,FLOOR_Y,0,CH);
+  fg.addColorStop(0,'#2d4a1e');fg.addColorStop(.25,'#3a6027');fg.addColorStop(1,'#1e2f10');
+  ctx.fillStyle=fg;ctx.fillRect(0,FLOOR_Y,CW,CH-FLOOR_Y);
+  ctx.fillStyle='rgba(255,255,255,.04)';ctx.fillRect(0,FLOOR_Y,CW,2);
+  // Grass bumps
+  ctx.fillStyle='#4a7a2e';
+  for(let x=0;x<CW;x+=20){
+    const h=4+Math.sin(x*.3)*2;
+    ctx.beginPath();ctx.ellipse(x+10,FLOOR_Y,10,h,0,Math.PI,0);ctx.fill();
+  }
+}
+
+function drawPipe(p){
+  const capH=20;
+  const pGrad=(x)=>{
+    const g=ctx.createLinearGradient(x,0,x+PIPE_W,0);
+    g.addColorStop(0,'#1b4d1f');g.addColorStop(.3,'#43a047');g.addColorStop(.65,'#2e7d32');g.addColorStop(1,'#1b4d1f');
+    return g;
+  };
+  const cGrad=(x)=>{
+    const g=ctx.createLinearGradient(x,0,x+PIPE_W,0);
+    g.addColorStop(0,'#1b5e20');g.addColorStop(.28,'#66bb6a');g.addColorStop(.7,'#388e3c');g.addColorStop(1,'#1b5e20');
+    return g;
+  };
+  const bevel=7;
+  // Top pipe body
+  if(p.gapY>capH){
+    ctx.fillStyle=pGrad(p.x+bevel);
+    ctx.fillRect(p.x+bevel,0,PIPE_W-bevel*2,p.gapY-capH);
+    ctx.fillStyle='rgba(255,255,255,.1)';
+    ctx.fillRect(p.x+bevel+3,0,5,p.gapY-capH);
+  }
+  // Top cap
+  ctx.fillStyle=cGrad(p.x);
+  ctx.fillRect(p.x,p.gapY-capH,PIPE_W,capH);
+  ctx.fillStyle='rgba(255,255,255,.12)';
+  ctx.fillRect(p.x+2,p.gapY-capH,5,capH);
+  ctx.fillStyle='rgba(0,0,0,.2)';
+  ctx.fillRect(p.x,p.gapY-2,PIPE_W,2);
+
+  const botY=p.gapY+PIPE_GAP;
+  const botH=FLOOR_Y-botY;
+  if(botH>0){
+    // Bottom cap
+    ctx.fillStyle=cGrad(p.x);
+    ctx.fillRect(p.x,botY,PIPE_W,capH);
+    ctx.fillStyle='rgba(255,255,255,.12)';
+    ctx.fillRect(p.x+2,botY,5,capH);
+    ctx.fillStyle='rgba(0,0,0,.2)';
+    ctx.fillRect(p.x,botY,PIPE_W,2);
+    // Bottom pipe body
+    if(botH>capH){
+      ctx.fillStyle=pGrad(p.x+bevel);
+      ctx.fillRect(p.x+bevel,botY+capH,PIPE_W-bevel*2,botH-capH);
+      ctx.fillStyle='rgba(255,255,255,.1)';
+      ctx.fillRect(p.x+bevel+3,botY+capH,5,botH-capH);
+    }
+  }
+}
+
+function drawBird(){
+  ctx.save();
+  ctx.translate(BIRD_X,bird.y);
+  ctx.rotate(bird.angle);
+  // Shadow
+  ctx.save();ctx.scale(1,.4);
+  ctx.beginPath();ctx.arc(0,BIRD_R*2.5,BIRD_R*.8,0,Math.PI*2);
+  ctx.fillStyle='rgba(0,0,0,.2)';ctx.fill();
+  ctx.restore();
+  // Body
+  const bg=ctx.createRadialGradient(-3,-4,1,0,0,BIRD_R);
+  bg.addColorStop(0,'#ffe082');bg.addColorStop(.6,'#ffb300');bg.addColorStop(1,'#e65100');
+  ctx.beginPath();ctx.ellipse(0,0,BIRD_R,BIRD_R*.88,0,0,Math.PI*2);
+  ctx.fillStyle=bg;ctx.fill();
+  ctx.strokeStyle='rgba(0,0,0,.22)';ctx.lineWidth=1.5;ctx.stroke();
+  // Wing
+  const wingOff=Math.sin(wingT)*5;
+  ctx.beginPath();ctx.ellipse(-2,wingOff,8,4.5,-.3,0,Math.PI*2);
+  ctx.fillStyle='#fb8c00';ctx.fill();
+  // Eye white
+  ctx.beginPath();ctx.arc(5,-3,4,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();
+  // Pupil
+  ctx.beginPath();ctx.arc(6,-3,2.2,0,Math.PI*2);ctx.fillStyle='#1a1a2e';ctx.fill();
+  // Shine
+  ctx.beginPath();ctx.arc(6.5,-3.8,.9,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();
+  // Beak
+  ctx.beginPath();ctx.moveTo(BIRD_R,1);ctx.lineTo(BIRD_R+7,3);ctx.lineTo(BIRD_R,5);
+  ctx.fillStyle='#ff6d00';ctx.fill();
+  ctx.restore();
+}
+
+function drawHUD(){
+  ctx.textAlign='center';ctx.textBaseline='top';
+  ctx.font='bold 44px system-ui';
+  ctx.shadowColor='rgba(0,0,0,.6)';ctx.shadowBlur=10;
+  ctx.fillStyle='#fff';ctx.fillText(score,CW/2,14);
+  ctx.shadowBlur=0;
+  ctx.font='12px system-ui';ctx.fillStyle='rgba(255,255,255,.48)';
+  ctx.fillText(`Best: ${best}`,CW/2,66);
+}
+
+function drawWait(){
+  // Pulsing ring
+  const pulse=.7+.3*Math.abs(Math.sin(Date.now()*.002));
+  ctx.save();ctx.globalAlpha=pulse*.6;
+  ctx.beginPath();ctx.arc(BIRD_X,bird.y,BIRD_R+12,0,Math.PI*2);
+  ctx.strokeStyle='#ffd166';ctx.lineWidth=2;ctx.stroke();
+  ctx.restore();
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.font='bold 22px system-ui';ctx.fillStyle='rgba(255,255,255,.92)';
+  ctx.shadowColor='rgba(0,0,0,.5)';ctx.shadowBlur=10;
+  ctx.fillText('Tap to Start',CW/2,CH/2+80);
+  ctx.shadowBlur=0;
+  if(best>0){
+    ctx.font='14px system-ui';ctx.fillStyle='rgba(255,255,255,.45)';
+    ctx.fillText(`Best: ${best}`,CW/2,CH/2+107);
+  }
+}
+
+function drawDead(){
+  ctx.fillStyle='rgba(0,0,0,.52)';ctx.fillRect(0,0,CW,CH);
+  const px=CW/2-88,py=CH/2-72,pw=176,ph=144;
+  // Panel
+  ctx.beginPath();
+  ctx.roundRect(px,py,pw,ph,16);
+  ctx.fillStyle='rgba(8,16,28,.92)';ctx.fill();
+  ctx.strokeStyle='rgba(255,255,255,.14)';ctx.lineWidth=1;ctx.stroke();
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.font='bold 26px system-ui';ctx.fillStyle='#ff6b6b';
+  ctx.fillText('Game Over',CW/2,py+33);
+  ctx.font='17px system-ui';ctx.fillStyle='#fff';
+  ctx.fillText(`Score: ${score}`,CW/2,py+64);
+  ctx.font='13px system-ui';ctx.fillStyle='rgba(255,255,255,.5)';
+  ctx.fillText(`Best: ${best}`,CW/2,py+88);
+  // Button
+  const bx=px+18,by=py+105,bw=pw-36,bh=32;
+  ctx.beginPath();ctx.roundRect(bx,by,bw,bh,8);
+  const bg=ctx.createLinearGradient(bx,0,bx+bw,0);
+  bg.addColorStop(0,'#ffd166');bg.addColorStop(1,'#ff9f1c');
+  ctx.fillStyle=bg;ctx.fill();
+  ctx.font='bold 14px system-ui';ctx.fillStyle='#1a0800';
+  ctx.fillText('▶ Play Again',CW/2,by+17);
+}
+
+function draw(){
+  drawBg();
+  for(const p of pipes)drawPipe(p);
+  drawBird();
+  for(const pt of parts){
+    ctx.globalAlpha=pt.a;
+    ctx.beginPath();ctx.arc(pt.x,pt.y,pt.r,0,Math.PI*2);
+    ctx.fillStyle=pt.col;ctx.fill();
+  }
+  ctx.globalAlpha=1;
+  if(state!=='wait')drawHUD();
+  if(state==='wait')drawWait();
+  if(state==='dead')drawDead();
+}
+
+function loop(){update();draw();requestAnimationFrame(loop);}
+
+canvas.addEventListener('click',jump);
+canvas.addEventListener('touchstart',e=>{e.preventDefault();jump();},{passive:false});
+
+reset();loop();
+</script>
+</body>
+</html>

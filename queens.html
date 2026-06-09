@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="theme-color" content="#0f0f1a"/>
+<title>Queens</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:#0f0f1a;min-height:100vh;display:flex;flex-direction:column;align-items:center;
+  font-family:'Segoe UI',system-ui,sans-serif;color:#fff;padding:8px 12px 32px;
+  user-select:none;-webkit-user-select:none}
+a.back{position:fixed;top:12px;left:12px;background:rgba(255,255,255,.1);
+  border:1px solid rgba(255,255,255,.2);color:#fff;text-decoration:none;
+  padding:6px 14px;border-radius:8px;font-size:13px;font-weight:600;z-index:100}
+h1{font-size:clamp(20px,5vw,26px);font-weight:800;
+  background:linear-gradient(90deg,#a78bfa,#e879f9);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  margin:2px 0 8px}
+.topbar{display:flex;align-items:center;gap:10px;margin-bottom:8px;width:100%;
+  max-width:440px;justify-content:space-between}
+.badge{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);
+  border-radius:20px;padding:4px 14px;font-size:13px;font-weight:600}
+.rbtn{background:rgba(167,139,250,.15);border:1px solid rgba(167,139,250,.3);
+  color:#a78bfa;border-radius:8px;padding:6px 14px;font-size:12px;font-weight:700;
+  cursor:pointer;font-family:inherit;transition:background .15s}
+.rbtn:hover{background:rgba(167,139,250,.28)}
+canvas{border-radius:16px;display:block;touch-action:none;
+  border:1px solid rgba(255,255,255,.07)}
+.hint{margin-top:10px;font-size:12px;opacity:.38;text-align:center}
+</style>
+</head>
+<body>
+<a class="back" href="index.html">← Games</a>
+<h1>👑 Queens</h1>
+<div class="topbar">
+  <span class="badge" id="badge">5×5</span>
+  <button class="rbtn" id="newpuzzle">New Puzzle</button>
+</div>
+<canvas id="canvas"></canvas>
+<p class="hint">Tap: mark → place queen → clear · One queen per row, column &amp; color</p>
+<script>
+const canvas=document.getElementById('canvas');
+const ctx=canvas.getContext('2d');
+const CW=420;
+let CH=440,scale=1;
+
+function resize(){
+  const a=Math.min(window.innerWidth-24,460);
+  scale=a/CW;
+  canvas.width=CW*scale;canvas.height=CH*scale;
+  ctx.setTransform(scale,0,0,scale,0,0);
+}
+
+// Region palette (up to 9 colors)
+const RCOL=[
+  {bg:'#2e1065',mid:'#5b21b6',hi:'#7c3aed',glow:'#8b5cf6'},
+  {bg:'#1e3a5f',mid:'#1e40af',hi:'#2563eb',glow:'#3b82f6'},
+  {bg:'#064e3b',mid:'#065f46',hi:'#059669',glow:'#10b981'},
+  {bg:'#7c1d2f',mid:'#9d174d',hi:'#be185d',glow:'#ec4899'},
+  {bg:'#78350f',mid:'#92400e',hi:'#b45309',glow:'#f59e0b'},
+  {bg:'#1e1b4b',mid:'#312e81',hi:'#4338ca',glow:'#6366f1'},
+  {bg:'#134e4a',mid:'#0f766e',hi:'#0d9488',glow:'#14b8a6'},
+  {bg:'#4a1942',mid:'#7e1d8a',hi:'#a21caf',glow:'#d946ef'},
+  {bg:'#431407',mid:'#9a3412',hi:'#c2410c',glow:'#f97316'},
+];
+
+let n,grid,marks,solution,conflicts,won,winAnim,level=0;
+const SIZES=[5,6,7,8,9,6,7,8,9,9];
+
+// Solve queens with no-adjacency rule (no two queens touch even diagonally)
+function solveQueens(sz){
+  const cols=new Array(sz);
+  function ok(row,col){
+    for(let r=0;r<row;r++){
+      if(cols[r]===col)return false;
+      if(Math.abs(r-row)===1&&Math.abs(cols[r]-col)<=1)return false;
+    }
+    return true;
+  }
+  function bt(row){
+    if(row===sz)return true;
+    // Shuffle order for variety
+    const ord=Array.from({length:sz},(_,i)=>i);
+    for(let i=sz-1;i>0;i--){const j=0|Math.random()*(i+1);[ord[i],ord[j]]=[ord[j],ord[i]];}
+    for(const c of ord){if(ok(row,c)){cols[row]=c;if(bt(row+1))return true;}}
+    return false;
+  }
+  return bt(0)?[...cols]:null;
+}
+
+// Grow colored regions from queen seed positions via randomised BFS
+function growRegions(sz,qcols){
+  const g=Array.from({length:sz},()=>new Int8Array(sz).fill(-1));
+  qcols.forEach((c,r)=>g[r][c]=r);
+  const Q=qcols.map((c,r)=>[[r,c]]);
+  const D=[[0,1],[0,-1],[1,0],[-1,0]];
+  let left=sz*sz-sz;
+  while(left>0){
+    let prog=false;
+    for(let i=0;i<sz&&left>0;i++){
+      if(!Q[i].length)continue;
+      const idx=0|Math.random()*Q[i].length;
+      const[r,c]=Q[i].splice(idx,1)[0];
+      for(const[dr,dc]of D){
+        const nr=r+dr,nc=c+dc;
+        if(nr>=0&&nr<sz&&nc>=0&&nc<sz&&g[nr][nc]===-1){
+          g[nr][nc]=i;Q[i].push([nr,nc]);left--;prog=true;
+        }
+      }
+    }
+    if(!prog){
+      // Fallback: manhattan nearest
+      for(let r=0;r<sz;r++)for(let c=0;c<sz;c++){
+        if(g[r][c]===-1){
+          let bi=0,bd=1e9;
+          qcols.forEach((qc,qr)=>{const d=Math.abs(r-qr)+Math.abs(c-qc);if(d<bd){bd=d;bi=qr;}});
+          g[r][c]=bi;
+        }
+      }
+      break;
+    }
+  }
+  return g;
+}
+
+function newPuzzle(){
+  n=SIZES[level%SIZES.length];
+  document.getElementById('badge').textContent=`${n}×${n}`;
+  // Try up to 30 times to get a valid solution
+  let tries=0;
+  do{solution=solveQueens(n);}while(!solution&&++tries<30);
+  if(!solution){
+    // Hardcoded fallback for n=5
+    solution=[1,3,0,2,4];n=5;
+    document.getElementById('badge').textContent='5×5';
+  }
+  grid=growRegions(n,solution);
+  marks=Array.from({length:n},()=>new Uint8Array(n));
+  conflicts=new Set();
+  won=false;winAnim=0;
+  // Recompute canvas height based on grid size
+  const cs=Math.floor((CW-20)/n);
+  CH=cs*n+24;
+  resize();
+}
+
+function computeConflicts(){
+  const s=new Set();
+  const qpos=[];
+  for(let r=0;r<n;r++)for(let c=0;c<n;c++)if(marks[r][c]===2)qpos.push([r,c]);
+  const rc=new Array(n).fill(0),cc=new Array(n).fill(0),rc2=new Array(n).fill(0);
+  for(const[r,c]of qpos){rc[r]++;cc[c]++;rc2[grid[r][c]]++;}
+  for(const[r,c]of qpos){
+    if(rc[r]>1||cc[c]>1||rc2[grid[r][c]]>1)s.add(r*n+c);
+  }
+  for(let i=0;i<qpos.length;i++)for(let j=i+1;j<qpos.length;j++){
+    const[r1,c1]=qpos[i],[r2,c2]=qpos[j];
+    if(Math.abs(r1-r2)<=1&&Math.abs(c1-c2)<=1){s.add(r1*n+c1);s.add(r2*n+c2);}
+  }
+  return s;
+}
+
+function checkWin(){
+  let qcount=0;
+  for(let r=0;r<n;r++)for(let c=0;c<n;c++)if(marks[r][c]===2)qcount++;
+  return qcount===n&&computeConflicts().size===0;
+}
+
+const M=10; // margin
+function cs(){return Math.floor((CW-M*2)/n);}
+
+function draw(){
+  ctx.fillStyle='#0f0f1a';ctx.fillRect(0,0,CW,CH);
+  const S=cs(),ox=M,oy=M;
+
+  // Draw cells
+  for(let r=0;r<n;r++){
+    for(let c=0;c<n;c++){
+      const x=ox+c*S,y=oy+r*S;
+      const reg=grid[r][c];
+      const rc2=RCOL[reg];
+      const isErr=conflicts.has(r*n+c);
+      // Base
+      ctx.fillStyle=isErr?'#3d0f0f':rc2.bg;
+      ctx.fillRect(x,y,S,S);
+      // Top-left lighter corner (bevel feel)
+      ctx.fillStyle=isErr?'rgba(255,60,60,.18)':('rgba(255,255,255,.05)');
+      ctx.fillRect(x,y,S,S);
+    }
+  }
+
+  // Region borders (thick) + grid lines (thin)
+  for(let r=0;r<n;r++){
+    for(let c=0;c<n;c++){
+      const x=ox+c*S,y=oy+r*S;
+      const reg=grid[r][c];
+      // Right
+      if(c+1<n){
+        const diff=grid[r][c+1]!==reg;
+        ctx.strokeStyle=diff?'rgba(255,255,255,.55)':'rgba(255,255,255,.08)';
+        ctx.lineWidth=diff?2.5:1;
+        ctx.beginPath();ctx.moveTo(x+S,y+1);ctx.lineTo(x+S,y+S-1);ctx.stroke();
+      }
+      // Bottom
+      if(r+1<n){
+        const diff=grid[r+1][c]!==reg;
+        ctx.strokeStyle=diff?'rgba(255,255,255,.55)':'rgba(255,255,255,.08)';
+        ctx.lineWidth=diff?2.5:1;
+        ctx.beginPath();ctx.moveTo(x+1,y+S);ctx.lineTo(x+S-1,y+S);ctx.stroke();
+      }
+    }
+  }
+
+  // Outer border
+  ctx.strokeStyle='rgba(167,139,250,.5)';ctx.lineWidth=2;
+  ctx.strokeRect(ox,oy,n*S,n*S);
+
+  // Draw marks
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  for(let r=0;r<n;r++){
+    for(let c=0;c<n;c++){
+      if(!marks[r][c])continue;
+      const x=ox+c*S+S/2,y=oy+r*S+S/2;
+      const isErr=conflicts.has(r*n+c);
+      if(marks[r][c]===1){
+        const s2=S*.22;
+        ctx.strokeStyle=isErr?'#ff4444':'rgba(255,255,255,.4)';
+        ctx.lineWidth=isErr?2.5:2;
+        ctx.beginPath();ctx.moveTo(x-s2,y-s2);ctx.lineTo(x+s2,y+s2);ctx.stroke();
+        ctx.beginPath();ctx.moveTo(x+s2,y-s2);ctx.lineTo(x-s2,y+s2);ctx.stroke();
+      } else if(marks[r][c]===2){
+        const fs=Math.min(S*.52,26);
+        ctx.font=`${fs}px serif`;
+        const reg=grid[r][c];
+        ctx.shadowColor=isErr?'#ff4444':RCOL[reg].glow;
+        ctx.shadowBlur=isErr?14:10;
+        ctx.fillStyle='#fff';
+        ctx.fillText('👑',x,y+1);
+        ctx.shadowBlur=0;
+      }
+    }
+  }
+
+  // Win overlay
+  if(won){
+    winAnim=Math.min(winAnim+.045,1);
+    ctx.fillStyle=`rgba(0,0,0,${.6*winAnim})`;ctx.fillRect(0,0,CW,CH);
+    if(winAnim>.35){
+      const a=(winAnim-.35)/.65;
+      ctx.globalAlpha=a;
+      ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.font='bold 38px system-ui';
+      ctx.shadowColor='#a78bfa';ctx.shadowBlur=28;
+      ctx.fillStyle='#fff';ctx.fillText('👑 Solved!',CW/2,CH/2-28);
+      ctx.shadowBlur=0;
+      ctx.font='15px system-ui';ctx.fillStyle='rgba(255,255,255,.7)';
+      ctx.fillText('Tap for next puzzle',CW/2,CH/2+8);
+      ctx.globalAlpha=1;
+    }
+  }
+}
+
+function handleTap(gx,gy){
+  if(won){level++;newPuzzle();return;}
+  const S=cs();
+  const c=Math.floor((gx-M)/S);
+  const r=Math.floor((gy-M)/S);
+  if(r<0||r>=n||c<0||c>=n)return;
+  marks[r][c]=(marks[r][c]+1)%3;
+  conflicts=computeConflicts();
+  if(checkWin())won=true;
+}
+
+function loop(){draw();requestAnimationFrame(loop);}
+
+canvas.addEventListener('click',e=>{
+  const rect=canvas.getBoundingClientRect();
+  handleTap((e.clientX-rect.left)/scale,(e.clientY-rect.top)/scale);
+});
+canvas.addEventListener('touchend',e=>{
+  e.preventDefault();
+  const rect=canvas.getBoundingClientRect();
+  handleTap((e.changedTouches[0].clientX-rect.left)/scale,(e.changedTouches[0].clientY-rect.top)/scale);
+},{passive:false});
+document.getElementById('newpuzzle').addEventListener('click',newPuzzle);
+
+newPuzzle();loop();
+</script>
+</body>
+</html>
