@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="theme-color" content="#0f0f1a"/>
+<title>Mini Sudoku</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:#0f0f1a;min-height:100vh;display:flex;flex-direction:column;align-items:center;
+  font-family:'Segoe UI',system-ui,sans-serif;color:#fff;padding:8px 12px 32px;
+  user-select:none;-webkit-user-select:none}
+a.back{position:fixed;top:12px;left:12px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);
+  color:#fff;text-decoration:none;padding:6px 14px;border-radius:8px;font-size:13px;font-weight:600;z-index:100}
+h1{font-size:clamp(20px,5vw,26px);font-weight:800;
+  background:linear-gradient(90deg,#818cf8,#6366f1);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;margin:2px 0 8px}
+.topbar{display:flex;align-items:center;gap:10px;margin-bottom:8px;width:100%;max-width:440px;justify-content:space-between}
+.badge{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:20px;padding:4px 14px;font-size:13px;font-weight:600}
+.rbtn{background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.3);color:#818cf8;
+  border-radius:8px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit}
+.rbtn:hover{background:rgba(99,102,241,.28)}
+canvas{border-radius:16px;display:block;touch-action:none;border:1px solid rgba(255,255,255,.07)}
+.hint{margin-top:10px;font-size:12px;opacity:.38;text-align:center}
+</style>
+</head>
+<body>
+<a class="back" href="index.html">← Games</a>
+<h1>🔢 Mini Sudoku</h1>
+<div class="topbar">
+  <span class="badge" id="badge">6×6</span>
+  <button class="rbtn" id="newbtn">New Puzzle</button>
+</div>
+<canvas id="canvas"></canvas>
+<p class="hint">Tap cell, then tap a number · Each row, col &amp; box needs 1–6</p>
+<script>
+const canvas=document.getElementById('canvas');
+const ctx=canvas.getContext('2d');
+const N=6,CW=384,CH=500;
+let scale=1;
+function resize(){
+  const a=Math.min(window.innerWidth-24,460);
+  scale=a/CW;canvas.width=CW*scale;canvas.height=CH*scale;
+  ctx.setTransform(scale,0,0,scale,0,0);
+}
+resize();window.addEventListener('resize',resize);
+
+const CS=Math.floor((CW-20)/N); // ~60
+const OX=Math.floor((CW-N*CS)/2),OY=14;
+const BTN_Y=OY+N*CS+22,BTN_W=44,BTN_H=44;
+
+let solution,puzzle,marks,given,selected,conflicts,won,winAnim=0;
+
+function valid(g,r,c,v){
+  for(let i=0;i<N;i++){if(g[r][i]===v)return false;if(g[i][c]===v)return false;}
+  const br=Math.floor(r/2)*2,bc=Math.floor(c/3)*3;
+  for(let i=br;i<br+2;i++)for(let j=bc;j<bc+3;j++)if(g[i][j]===v)return false;
+  return true;
+}
+
+function genSolution(){
+  const g=Array.from({length:N},()=>new Array(N).fill(0));
+  const nums=[1,2,3,4,5,6];
+  function bt(pos){
+    if(pos===N*N)return true;
+    const r=pos/N|0,c=pos%N;
+    const ns=[...nums];
+    for(let i=5;i>0;i--){const j=0|Math.random()*(i+1);[ns[i],ns[j]]=[ns[j],ns[i]];}
+    for(const v of ns){if(valid(g,r,c,v)){g[r][c]=v;if(bt(pos+1))return true;g[r][c]=0;}}
+    return false;
+  }
+  return bt(0)?g:null;
+}
+
+function makePuzzle(sol,keep=20){
+  const p=sol.map(r=>[...r]);
+  const cells=[];
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++)cells.push([r,c]);
+  for(let i=cells.length-1;i>0;i--){const j=0|Math.random()*(i+1);[cells[i],cells[j]]=[cells[j],cells[i]];}
+  let count=N*N;
+  for(const[r,c]of cells){if(count<=keep)break;p[r][c]=0;count--;}
+  return p;
+}
+
+function newPuzzle(){
+  let sol=null;for(let i=0;i<20;i++){sol=genSolution();if(sol)break;}
+  if(!sol)return;
+  solution=sol;puzzle=makePuzzle(sol,20);
+  given=puzzle.map(r=>[...r]);marks=puzzle.map(r=>[...r]);
+  selected=null;conflicts=new Set();won=false;winAnim=0;
+  document.getElementById('badge').textContent='6×6';
+}
+
+function calcConflicts(){
+  const s=new Set();
+  for(let r=0;r<N;r++){
+    const seen={};
+    for(let c=0;c<N;c++){const v=marks[r][c];if(v){if(seen[v]!==undefined){s.add(r*N+seen[v]);s.add(r*N+c);}else seen[v]=c;}}
+  }
+  for(let c=0;c<N;c++){
+    const seen={};
+    for(let r=0;r<N;r++){const v=marks[r][c];if(v){if(seen[v]!==undefined){s.add(seen[v]*N+c);s.add(r*N+c);}else seen[v]=r;}}
+  }
+  for(let br=0;br<N;br+=2)for(let bc=0;bc<N;bc+=3){
+    const seen={};
+    for(let r=br;r<br+2;r++)for(let c=bc;c<bc+3;c++){
+      const v=marks[r][c];
+      if(v){
+        const k=`${r},${c}`;
+        if(seen[v]!==undefined){s.add(seen[v]);s.add(r*N+c);}
+        else seen[v]=r*N+c;
+      }
+    }
+  }
+  return s;
+}
+
+function checkWin(){
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++)if(!marks[r][c])return false;
+  return calcConflicts().size===0;
+}
+
+function drawRR(x,y,w,h,r){
+  ctx.beginPath();ctx.roundRect(x,y,w,h,r);
+}
+
+function draw(){
+  ctx.fillStyle='#0f0f1a';ctx.fillRect(0,0,CW,CH);
+
+  for(let r=0;r<N;r++){
+    for(let c=0;c<N;c++){
+      const x=OX+c*CS,y=OY+r*CS;
+      const isSel=selected&&selected[0]===r&&selected[1]===c;
+      const isGiven=given[r][c]!==0;
+      const isErr=conflicts.has(r*N+c);
+      const sameSel=selected&&!isSel&&marks[selected[0]][selected[1]]&&
+        marks[selected[0]][selected[1]]===marks[r][c];
+      // Box bg
+      const br2=Math.floor(r/2),bc2=Math.floor(c/3);
+      const boxShade=(br2+bc2)%2===0;
+      ctx.fillStyle=isErr?'rgba(255,60,60,.22)':isSel?'rgba(99,102,241,.35)':
+        sameSel?'rgba(99,102,241,.12)':isGiven?'rgba(255,255,255,.06)':
+        boxShade?'rgba(255,255,255,.02)':'rgba(0,0,0,.0)';
+      ctx.fillRect(x+1,y+1,CS-2,CS-2);
+    }
+  }
+
+  // Grid lines
+  for(let r=0;r<=N;r++){
+    const y=OY+r*CS;
+    ctx.strokeStyle=r%2===0?'rgba(255,255,255,.45)':'rgba(255,255,255,.12)';
+    ctx.lineWidth=r%2===0?2:1;
+    ctx.beginPath();ctx.moveTo(OX,y);ctx.lineTo(OX+N*CS,y);ctx.stroke();
+  }
+  for(let c=0;c<=N;c++){
+    const x=OX+c*CS;
+    ctx.strokeStyle=c%3===0?'rgba(255,255,255,.45)':'rgba(255,255,255,.12)';
+    ctx.lineWidth=c%3===0?2:1;
+    ctx.beginPath();ctx.moveTo(x,OY);ctx.lineTo(x,OY+N*CS);ctx.stroke();
+  }
+
+  // Numbers
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){
+    if(!marks[r][c])continue;
+    const x=OX+c*CS+CS/2,y=OY+r*CS+CS/2;
+    const isGiven=given[r][c]!==0;
+    const isErr=conflicts.has(r*N+c);
+    ctx.font=`${isGiven?'bold':'normal'} ${Math.min(CS*.5,28)}px system-ui`;
+    ctx.fillStyle=isErr?'#ff6b6b':isGiven?'#fff':'#818cf8';
+    ctx.fillText(marks[r][c],x,y+1);
+  }
+
+  // Number buttons
+  const totalW=7*(BTN_W+6)-6;const bx0=(CW-totalW)/2;
+  for(let i=0;i<7;i++){
+    const bx=bx0+i*(BTN_W+6),by=BTN_Y;
+    const isErase=i===6;
+    drawRR(bx,by,BTN_W,BTN_H,8);
+    ctx.fillStyle=isErase?'rgba(255,100,100,.15)':'rgba(99,102,241,.15)';ctx.fill();
+    ctx.strokeStyle=isErase?'rgba(255,100,100,.3)':'rgba(99,102,241,.3)';ctx.lineWidth=1;ctx.stroke();
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.font=`bold ${isErase?14:18}px system-ui`;
+    ctx.fillStyle=isErase?'#f87171':'#818cf8';
+    ctx.fillText(isErase?'⌫':i+1,bx+BTN_W/2,by+BTN_H/2+1);
+  }
+
+  // Win overlay
+  if(won){
+    winAnim=Math.min(winAnim+.04,1);
+    ctx.fillStyle=`rgba(0,0,0,${.6*winAnim})`;ctx.fillRect(0,0,CW,CH);
+    if(winAnim>.4){
+      const a=(winAnim-.4)/.6;ctx.globalAlpha=a;
+      ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.font='bold 38px system-ui';ctx.shadowColor='#6366f1';ctx.shadowBlur=25;
+      ctx.fillStyle='#fff';ctx.fillText('🎉 Solved!',CW/2,CH/2-20);
+      ctx.shadowBlur=0;ctx.font='14px system-ui';ctx.fillStyle='rgba(255,255,255,.7)';
+      ctx.fillText('Tap for new puzzle',CW/2,CH/2+12);ctx.globalAlpha=1;
+    }
+  }
+}
+
+function handleTap(gx,gy){
+  if(won){newPuzzle();return;}
+  // Check number buttons
+  const totalW=7*(BTN_W+6)-6;const bx0=(CW-totalW)/2;
+  if(gy>=BTN_Y&&gy<=BTN_Y+BTN_H){
+    for(let i=0;i<7;i++){
+      const bx=bx0+i*(BTN_W+6);
+      if(gx>=bx&&gx<=bx+BTN_W){
+        if(!selected)return;
+        const[sr,sc]=selected;
+        if(given[sr][sc])return;
+        if(i===6)marks[sr][sc]=0;
+        else marks[sr][sc]=i+1;
+        conflicts=calcConflicts();
+        if(checkWin())won=true;
+        return;
+      }
+    }
+  }
+  // Check grid
+  const c=Math.floor((gx-OX)/CS),r=Math.floor((gy-OY)/CS);
+  if(r<0||r>=N||c<0||c>=N)return;
+  if(selected&&selected[0]===r&&selected[1]===c){selected=null;return;}
+  selected=[r,c];
+}
+
+function loop(){draw();requestAnimationFrame(loop);}
+canvas.addEventListener('click',e=>{const rect=canvas.getBoundingClientRect();handleTap((e.clientX-rect.left)/scale,(e.clientY-rect.top)/scale);});
+canvas.addEventListener('touchend',e=>{e.preventDefault();const rect=canvas.getBoundingClientRect();handleTap((e.changedTouches[0].clientX-rect.left)/scale,(e.changedTouches[0].clientY-rect.top)/scale);},{passive:false});
+document.addEventListener('keydown',e=>{
+  if(!selected)return;
+  const[sr,sc]=selected;if(given[sr][sc])return;
+  if(/^[1-6]$/.test(e.key)){marks[sr][sc]=+e.key;conflicts=calcConflicts();if(checkWin())won=true;}
+  else if(e.key==='Backspace'||e.key==='Delete'||e.key==='0'){marks[sr][sc]=0;conflicts=calcConflicts();}
+});
+document.getElementById('newbtn').addEventListener('click',newPuzzle);
+
+newPuzzle();loop();
+</script>
+</body>
+</html>

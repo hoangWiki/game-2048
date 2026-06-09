@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="theme-color" content="#0f0f1a"/>
+<title>Pinpoint</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:#0f0f1a;min-height:100vh;display:flex;flex-direction:column;align-items:center;
+  font-family:'Segoe UI',system-ui,sans-serif;color:#fff;padding:8px 16px 32px;
+  user-select:none;-webkit-user-select:none}
+a.back{position:fixed;top:12px;left:12px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);
+  color:#fff;text-decoration:none;padding:6px 14px;border-radius:8px;font-size:13px;font-weight:600;z-index:100}
+h1{font-size:clamp(20px,5vw,26px);font-weight:800;
+  background:linear-gradient(90deg,#fb923c,#f97316);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;margin:2px 0 20px;padding-top:38px}
+.game{width:100%;max-width:400px;display:flex;flex-direction:column;align-items:center;gap:14px}
+.score-bar{display:flex;gap:8px;align-self:stretch;justify-content:center}
+.star{width:40px;height:40px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);
+  border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;transition:background .3s}
+.star.lit{background:rgba(251,146,60,.25);border-color:rgba(251,146,60,.5)}
+.clues-panel{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:16px;
+  padding:20px;width:100%;min-height:180px;display:flex;flex-direction:column;align-items:center;gap:10px}
+.clue{font-size:clamp(18px,6vw,26px);font-weight:800;letter-spacing:2px;text-transform:uppercase;
+  opacity:0;transition:opacity .4s,transform .4s;transform:translateY(8px);color:#fff}
+.clue.show{opacity:1;transform:none}
+.clue-placeholder{font-size:14px;opacity:.25;letter-spacing:1px}
+.hidden-count{font-size:13px;opacity:.35;margin-top:auto}
+.input-row{display:flex;gap:8px;width:100%}
+#guess{flex:1;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);
+  color:#fff;border-radius:10px;padding:10px 14px;font-size:15px;font-family:inherit;
+  outline:none;text-transform:uppercase}
+#guess::placeholder{text-transform:none;opacity:.4}
+#guess:focus{border-color:rgba(251,146,60,.5)}
+.sbtn{background:rgba(251,146,60,.2);border:1px solid rgba(251,146,60,.4);color:#fb923c;
+  border-radius:10px;padding:10px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;
+  white-space:nowrap}
+.sbtn:hover{background:rgba(251,146,60,.32)}
+.reveal-btn{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.7);
+  border-radius:10px;padding:9px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;width:100%}
+.reveal-btn:hover{background:rgba(255,255,255,.12)}
+.reveal-btn:disabled{opacity:.35;cursor:default}
+#feedback{height:22px;font-size:13px;font-weight:600;text-align:center}
+.feedback-ok{color:#4ade80}
+.feedback-no{color:#f87171}
+.result-card{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:14px;
+  padding:18px 20px;width:100%;text-align:center;display:none}
+.result-card.show{display:block}
+.result-score{font-size:36px;font-weight:900;color:#fb923c}
+.result-label{font-size:14px;opacity:.6;margin-bottom:12px}
+.result-cat{font-size:18px;font-weight:700;margin-bottom:14px}
+.next-btn{background:linear-gradient(90deg,#fb923c,#f97316);border:none;color:#fff;
+  border-radius:10px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
+</style>
+</head>
+<body>
+<a class="back" href="index.html">← Games</a>
+<h1>📍 Pinpoint</h1>
+<div class="game">
+  <div class="score-bar" id="stars"></div>
+  <div class="clues-panel" id="clues-panel">
+    <span class="clue-placeholder">Clues will appear here...</span>
+  </div>
+  <div id="feedback"></div>
+  <div class="input-row">
+    <input id="guess" type="text" placeholder="Type the category..." autocomplete="off" autocorrect="off" spellcheck="false"/>
+    <button class="sbtn" id="submitbtn">Guess</button>
+  </div>
+  <button class="reveal-btn" id="revealbtn">Reveal next clue (5 pts → 4 pts)</button>
+  <div class="result-card" id="result">
+    <div class="result-score" id="result-score"></div>
+    <div class="result-label">points</div>
+    <div class="result-cat" id="result-cat"></div>
+    <button class="next-btn" id="nextbtn">Next Puzzle</button>
+  </div>
+</div>
+<script>
+const PUZZLES=[
+  {cat:'PLANETS',words:['SATURN','MARS','VENUS','JUPITER','EARTH']},
+  {cat:'CHESS PIECES',words:['PAWN','ROOK','KNIGHT','BISHOP','QUEEN']},
+  {cat:'GREEK LETTERS',words:['ALPHA','BETA','GAMMA','DELTA','OMEGA']},
+  {cat:'BROWSERS',words:['CHROME','FIREFOX','SAFARI','OPERA','EDGE']},
+  {cat:'PROGRAMMING LANGUAGES',words:['PYTHON','SWIFT','RUBY','RUST','JAVA']},
+  {cat:'OCEANS',words:['PACIFIC','ATLANTIC','INDIAN','ARCTIC','SOUTHERN']},
+  {cat:'CARD SUITS',words:['HEARTS','SPADES','CLUBS','DIAMONDS','TRUMPS']},
+  {cat:'MUSIC GENRES',words:['JAZZ','BLUES','REGGAE','METAL','DISCO']},
+  {cat:'CURRENCIES',words:['DOLLAR','EURO','YEN','POUND','FRANC']},
+  {cat:'ELEMENTS',words:['GOLD','IRON','OXYGEN','CARBON','HELIUM']},
+  {cat:'DOG BREEDS',words:['HUSKY','POODLE','BEAGLE','CORGI','BOXER']},
+  {cat:'CONTINENTS',words:['ASIA','AFRICA','EUROPE','AUSTRALIA','ANTARCTICA']},
+  {cat:'DAYS OF WEEK',words:['MONDAY','FRIDAY','SUNDAY','TUESDAY','SATURDAY']},
+  {cat:'SUPERHEROES',words:['BATMAN','THOR','FLASH','HULK','IRONMAN']},
+  {cat:'TROPICAL FRUITS',words:['MANGO','LYCHEE','GUAVA','PAPAYA','DURIAN']},
+  {cat:'SOCIAL NETWORKS',words:['TWITTER','TIKTOK','REDDIT','LINKEDIN','DISCORD']},
+  {cat:'SHAPES',words:['CIRCLE','TRIANGLE','PENTAGON','HEXAGON','OCTAGON']},
+  {cat:'COLORS',words:['CRIMSON','AZURE','JADE','CORAL','AMBER']},
+  {cat:'CARD GAMES',words:['POKER','BRIDGE','RUMMY','SOLITAIRE','BLACKJACK']},
+  {cat:'PLANETS (INNER)',words:['MERCURY','VENUS','EARTH','MARS','ASTEROID BELT']},
+];
+
+let puzzleIdx=Math.floor(Math.random()*PUZZLES.length);
+let revealed=0,pts=5,over=false;
+
+function currentPuzzle(){return PUZZLES[puzzleIdx%PUZZLES.length];}
+
+function initGame(){
+  const p=currentPuzzle();
+  revealed=0;pts=5;over=false;
+  document.getElementById('result').classList.remove('show');
+  document.getElementById('feedback').textContent='';
+  document.getElementById('guess').value='';
+  document.getElementById('guess').disabled=false;
+  document.getElementById('submitbtn').disabled=false;
+  document.getElementById('revealbtn').disabled=false;
+  // Stars
+  const sb=document.getElementById('stars');sb.innerHTML='';
+  for(let i=0;i<5;i++){const d=document.createElement('div');d.className='star';d.textContent='⭐';sb.appendChild(d);}
+  // Clues panel
+  const cp=document.getElementById('clues-panel');cp.innerHTML='';
+  for(let i=0;i<5;i++){
+    const s=document.createElement('div');s.className='clue';s.id=`clue-${i}`;
+    s.textContent=p.words[i];cp.appendChild(s);
+  }
+  const hc=document.createElement('div');hc.className='hidden-count';hc.id='hidden-count';
+  hc.textContent=`${5-revealed} clue${5-revealed!==1?'s':''} hidden`;
+  cp.appendChild(hc);
+  revealNext();
+  updateRevealBtn();
+}
+
+function revealNext(){
+  if(revealed>=5)return;
+  const s=document.getElementById(`clue-${revealed}`);
+  if(s){setTimeout(()=>s.classList.add('show'),50);}
+  revealed++;
+  pts=Math.max(1,6-revealed);
+  const hc=document.getElementById('hidden-count');
+  if(hc){const left=5-revealed;hc.textContent=left>0?`${left} clue${left!==1?'s':''} hidden`:'All clues shown';}
+  // Dim stars
+  const stars=document.querySelectorAll('.star');
+  for(let i=0;i<5;i++)stars[i].classList.toggle('lit',i<revealed);
+  updateRevealBtn();
+}
+
+function updateRevealBtn(){
+  const btn=document.getElementById('revealbtn');
+  if(revealed>=5||over){btn.disabled=true;return;}
+  const next=revealed+1;
+  btn.textContent=`Reveal clue ${next}/5 · score drops to ${Math.max(1,6-next)} pts`;
+  btn.disabled=false;
+}
+
+function submitGuess(){
+  if(over)return;
+  const g=document.getElementById('guess').value.trim().toUpperCase();
+  const cat=currentPuzzle().cat.toUpperCase();
+  const fb=document.getElementById('feedback');
+  if(!g){fb.textContent='Type a guess!';fb.className='';return;}
+  if(g===cat||cat.includes(g)||g.includes(cat.split(' ')[0])){
+    fb.textContent='✓ Correct!';fb.className='feedback-ok';
+    endGame(pts,true);
+  } else {
+    fb.textContent='✗ Try again';fb.className='feedback-no';
+    setTimeout(()=>{if(!over)fb.textContent='';},1200);
+  }
+}
+
+function endGame(score,won){
+  over=true;
+  document.getElementById('guess').disabled=true;
+  document.getElementById('submitbtn').disabled=true;
+  document.getElementById('revealbtn').disabled=true;
+  const r=document.getElementById('result');
+  document.getElementById('result-score').textContent=won?score:0;
+  document.getElementById('result-cat').textContent=`Category: ${currentPuzzle().cat}`;
+  r.classList.add('show');
+  if(!won){
+    // Reveal all clues
+    for(let i=revealed;i<5;i++){
+      setTimeout(()=>revealNext(),i*300);
+    }
+    document.getElementById('feedback').textContent='The answer was: '+currentPuzzle().cat;
+    document.getElementById('feedback').className='feedback-no';
+  }
+}
+
+document.getElementById('revealbtn').addEventListener('click',()=>{
+  if(revealed>=5||over)return;
+  revealNext();
+});
+document.getElementById('submitbtn').addEventListener('click',submitGuess);
+document.getElementById('guess').addEventListener('keydown',e=>{if(e.key==='Enter')submitGuess();});
+document.getElementById('nextbtn').addEventListener('click',()=>{puzzleIdx++;initGame();});
+
+initGame();
+</script>
+</body>
+</html>

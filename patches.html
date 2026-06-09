@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="theme-color" content="#0f0f1a"/>
+<title>Patches</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:#0f0f1a;min-height:100vh;display:flex;flex-direction:column;align-items:center;
+  font-family:'Segoe UI',system-ui,sans-serif;color:#fff;padding:8px 12px 32px;
+  user-select:none;-webkit-user-select:none}
+a.back{position:fixed;top:12px;left:12px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);
+  color:#fff;text-decoration:none;padding:6px 14px;border-radius:8px;font-size:13px;font-weight:600;z-index:100}
+h1{font-size:clamp(20px,5vw,26px);font-weight:800;
+  background:linear-gradient(90deg,#fb7185,#f43f5e);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;margin:2px 0 8px}
+.topbar{display:flex;align-items:center;gap:10px;margin-bottom:8px;width:100%;max-width:440px;justify-content:space-between}
+.badge{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:20px;padding:4px 14px;font-size:13px;font-weight:600}
+.controls{display:flex;gap:6px}
+.rbtn{background:rgba(251,113,133,.15);border:1px solid rgba(251,113,133,.3);color:#fb7185;
+  border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit}
+.rbtn:hover{background:rgba(251,113,133,.25)}
+canvas{border-radius:16px;display:block;touch-action:none;border:1px solid rgba(255,255,255,.07)}
+.hint{margin-top:10px;font-size:12px;opacity:.38;text-align:center}
+</style>
+</head>
+<body>
+<a class="back" href="index.html">← Games</a>
+<h1>🧩 Patches</h1>
+<div class="topbar">
+  <span class="badge" id="badge">Puzzle 1/3</span>
+  <div class="controls">
+    <button class="rbtn" id="rotbtn">↻ Rotate</button>
+    <button class="rbtn" id="newbtn">New</button>
+  </div>
+</div>
+<canvas id="canvas"></canvas>
+<p class="hint">Select a patch · Place it on the grid · Rotate to fit</p>
+<script>
+const canvas=document.getElementById('canvas');
+const ctx=canvas.getContext('2d');
+const CW=384,CH=520;
+let scale=1;
+function resize(){
+  const a=Math.min(window.innerWidth-24,440);
+  scale=a/CW;canvas.width=CW*scale;canvas.height=CH*scale;
+  ctx.setTransform(scale,0,0,scale,0,0);
+}
+resize();window.addEventListener('resize',resize);
+
+// Each piece: array of [row,col] relative to anchor (0,0)
+// Colors for 4 pieces
+const PIECE_COLORS=['#ef4444','#3b82f6','#22c55e','#f59e0b'];
+const PIECE_DARK=['#991b1b','#1d4ed8','#15803d','#b45309'];
+
+// 3 puzzles: each has a solution grid (4×4, 4 regions) + initial piece shapes
+// Solution grid values: 0-3 = piece index
+const PUZZLES=[
+  // Puzzle 1
+  [[0,1,1,1],[0,0,1,2],[3,0,2,2],[3,3,3,2]],
+  // Puzzle 2
+  [[0,0,1,1],[2,0,0,1],[2,2,3,1],[2,3,3,3]],
+  // Puzzle 3
+  [[0,1,1,1],[0,2,1,3],[0,2,3,3],[0,2,2,3]],
+];
+
+function extractPiece(grid,id){
+  const cells=[];
+  for(let r=0;r<4;r++)for(let c=0;c<4;c++)if(grid[r][c]===id)cells.push([r,c]);
+  const mr=Math.min(...cells.map(([r])=>r)),mc=Math.min(...cells.map(([,c])=>c));
+  return cells.map(([r,c])=>[r-mr,c-mc]);
+}
+
+function rotateCW(cells){
+  const rotated=cells.map(([r,c])=>[c,-r]);
+  const mr=Math.min(...rotated.map(([r])=>r)),mc=Math.min(...rotated.map(([,c])=>c));
+  return rotated.map(([r,c])=>[r-mr,c-mc]);
+}
+
+// Game state
+const GN=4;
+const GCS=72; // grid cell size
+const GOX=Math.floor((CW-GN*GCS)/2),GOY=14;
+// Piece panel: 4 pieces arranged horizontally below grid
+const PP_Y=GOY+GN*GCS+22;
+const PP_CS=14; // piece preview cell size
+const PP_W=80,PP_H=80;
+
+let puzzleIdx=0,pieces,placed,grid,selected,won,winAnim=0;
+
+function newPuzzle(){
+  const sol=PUZZLES[puzzleIdx%PUZZLES.length];
+  grid=Array.from({length:GN},()=>new Array(GN).fill(-1));
+  pieces=[];
+  for(let i=0;i<4;i++){
+    pieces.push({cells:extractPiece(sol,i),color:PIECE_COLORS[i],dark:PIECE_DARK[i],placed:false,r:0,c:0});
+  }
+  placed=Array.from({length:GN},()=>new Array(GN).fill(-1));
+  selected=null;won=false;winAnim=0;
+  document.getElementById('badge').textContent=`Puzzle ${puzzleIdx%3+1}/3`;
+}
+
+function canPlace(pIdx,gr,gc){
+  const p=pieces[pIdx];
+  for(const[dr,dc]of p.cells){
+    const nr=gr+dr,nc=gc+dc;
+    if(nr<0||nr>=GN||nc<0||nc>=GN)return false;
+    if(placed[nr][nc]!==-1)return false;
+  }
+  return true;
+}
+
+function placePiece(pIdx,gr,gc){
+  if(!canPlace(pIdx,gr,gc))return false;
+  const p=pieces[pIdx];
+  for(const[dr,dc]of p.cells)placed[gr+dr][gc+dc]=pIdx;
+  p.placed=true;p.r=gr;p.c=gc;
+  return true;
+}
+
+function removePiece(pIdx){
+  const p=pieces[pIdx];
+  for(let r=0;r<GN;r++)for(let c=0;c<GN;c++)if(placed[r][c]===pIdx)placed[r][c]=-1;
+  p.placed=false;
+}
+
+function checkWin(){
+  return pieces.every(p=>p.placed);
+}
+
+function piecePanelX(i){return 10+i*(PP_W+8);}
+
+function draw(){
+  ctx.fillStyle='#0f0f1a';ctx.fillRect(0,0,CW,CH);
+
+  // Grid background
+  for(let r=0;r<GN;r++)for(let c=0;c<GN;c++){
+    const x=GOX+c*GCS,y=GOY+r*GCS;
+    const pid=placed[r][c];
+    const isSel=selected!==null&&pid===selected&&pieces[selected]?.placed;
+    ctx.fillStyle=pid!==-1?pieces[pid].color+'44':'rgba(255,255,255,.04)';
+    ctx.fillRect(x+1,y+1,GCS-2,GCS-2);
+    if(pid!==-1){
+      ctx.strokeStyle=isSel?'#fff':pieces[pid].color;
+      ctx.lineWidth=isSel?2.5:1.5;ctx.strokeRect(x+1,y+1,GCS-2,GCS-2);
+    } else {
+      ctx.strokeStyle='rgba(255,255,255,.1)';ctx.lineWidth=1;ctx.strokeRect(x+.5,y+.5,GCS-1,GCS-1);
+    }
+  }
+  // Grid outer border
+  ctx.strokeStyle='rgba(251,113,133,.4)';ctx.lineWidth=2;
+  ctx.strokeRect(GOX,GOY,GN*GCS,GN*GCS);
+
+  // Show placed piece color fills (with pattern)
+  for(let r=0;r<GN;r++)for(let c=0;c<GN;c++){
+    const pid=placed[r][c];
+    if(pid===-1)continue;
+    const x=GOX+c*GCS,y=GOY+r*GCS;
+    // Crosshatch pattern
+    ctx.save();ctx.rect(x+2,y+2,GCS-4,GCS-4);ctx.clip();
+    ctx.strokeStyle=pieces[pid].dark;ctx.lineWidth=1;ctx.globalAlpha=.3;
+    for(let d=-GCS;d<GCS*2;d+=8){
+      ctx.beginPath();ctx.moveTo(x+d,y);ctx.lineTo(x+d+GCS,y+GCS);ctx.stroke();
+    }
+    ctx.globalAlpha=1;ctx.restore();
+  }
+
+  // Hover preview: if piece selected and over grid
+  if(selected!==null&&!pieces[selected].placed&&hoverCell){
+    const p=pieces[selected];const[hr,hc]=hoverCell;
+    const ok=canPlace(selected,hr,hc);
+    for(const[dr,dc]of p.cells){
+      const nr=hr+dr,nc=hc+dc;
+      if(nr<0||nr>=GN||nc<0||nc>=GN)continue;
+      const x=GOX+nc*GCS,y=GOY+nr*GCS;
+      ctx.fillStyle=ok?p.color+'66':'rgba(255,80,80,.3)';
+      ctx.fillRect(x+2,y+2,GCS-4,GCS-4);
+    }
+  }
+
+  // Piece panel
+  for(let i=0;i<4;i++){
+    const px=piecePanelX(i),py=PP_Y;
+    const p=pieces[i];
+    const isSel=selected===i;
+    ctx.beginPath();ctx.roundRect(px,py,PP_W,PP_H,10);
+    ctx.fillStyle=p.placed?'rgba(255,255,255,.04)':isSel?p.color+'33':'rgba(255,255,255,.07)';ctx.fill();
+    ctx.strokeStyle=p.placed?'rgba(255,255,255,.08)':isSel?p.color:'rgba(255,255,255,.15)';
+    ctx.lineWidth=isSel?2:1;ctx.stroke();
+    if(p.placed){
+      ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.font='22px serif';ctx.fillText('✓',px+PP_W/2,py+PP_H/2);
+      continue;
+    }
+    // Draw piece preview
+    const maxR=Math.max(...p.cells.map(([r])=>r))+1;
+    const maxC=Math.max(...p.cells.map(([,c])=>c))+1;
+    const ps=Math.min((PP_W-10)/maxC,(PP_H-10)/maxR,18);
+    const ox=px+(PP_W-maxC*ps)/2,oy=py+(PP_H-maxR*ps)/2;
+    for(const[dr,dc]of p.cells){
+      ctx.fillStyle=p.color;
+      ctx.fillRect(ox+dc*ps+1,oy+dr*ps+1,ps-2,ps-2);
+      ctx.strokeStyle=p.dark;ctx.lineWidth=1;
+      ctx.strokeRect(ox+dc*ps+1,oy+dr*ps+1,ps-2,ps-2);
+    }
+  }
+
+  // Piece labels
+  ctx.textAlign='center';ctx.textBaseline='top';
+  ctx.font='10px system-ui';ctx.fillStyle='rgba(255,255,255,.3)';
+  for(let i=0;i<4;i++){
+    ctx.fillText(`P${i+1}`,piecePanelX(i)+PP_W/2,PP_Y+PP_H+4);
+  }
+
+  // Win overlay
+  if(won){
+    winAnim=Math.min(winAnim+.04,1);
+    ctx.fillStyle=`rgba(0,0,0,${.6*winAnim})`;ctx.fillRect(0,0,CW,CH);
+    if(winAnim>.4){
+      const a=(winAnim-.4)/.6;ctx.globalAlpha=a;
+      ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.font='bold 36px system-ui';ctx.shadowColor='#fb7185';ctx.shadowBlur=24;
+      ctx.fillStyle='#fff';ctx.fillText('🧩 Complete!',CW/2,CH/2-20);
+      ctx.shadowBlur=0;ctx.font='14px system-ui';ctx.fillStyle='rgba(255,255,255,.7)';
+      ctx.fillText('Tap for next puzzle',CW/2,CH/2+12);ctx.globalAlpha=1;
+    }
+  }
+}
+
+let hoverCell=null;
+
+function handleTap(gx,gy){
+  if(won){puzzleIdx++;newPuzzle();return;}
+
+  // Check grid
+  const gc=Math.floor((gx-GOX)/GCS),gr=Math.floor((gy-GOY)/GCS);
+  if(gr>=0&&gr<GN&&gc>=0&&gc<GN){
+    hoverCell=[gr,gc];
+    const pid=placed[gr][gc];
+    if(pid!==-1){
+      // Click placed piece → remove it, select it
+      removePiece(pid);selected=pid;return;
+    }
+    if(selected!==null&&!pieces[selected].placed){
+      if(placePiece(selected,gr,gc)){
+        selected=null;hoverCell=null;
+        if(checkWin())won=true;
+      }
+    }
+    return;
+  }
+
+  // Check piece panel
+  for(let i=0;i<4;i++){
+    const px=piecePanelX(i),py=PP_Y;
+    if(gx>=px&&gx<=px+PP_W&&gy>=py&&gy<=py+PP_H){
+      if(pieces[i].placed){removePiece(i);selected=i;}
+      else selected=(selected===i?null:i);
+      return;
+    }
+  }
+  selected=null;
+}
+
+function handleMove(gx,gy){
+  const gc=Math.floor((gx-GOX)/GCS),gr=Math.floor((gy-GOY)/GCS);
+  hoverCell=(gr>=0&&gr<GN&&gc>=0&&gc<GN)?[gr,gc]:null;
+}
+
+function loop(){draw();requestAnimationFrame(loop);}
+canvas.addEventListener('click',e=>{const r=canvas.getBoundingClientRect();handleTap((e.clientX-r.left)/scale,(e.clientY-r.top)/scale);});
+canvas.addEventListener('touchend',e=>{e.preventDefault();const r=canvas.getBoundingClientRect();handleTap((e.changedTouches[0].clientX-r.left)/scale,(e.changedTouches[0].clientY-r.top)/scale);hoverCell=null;},{passive:false});
+canvas.addEventListener('mousemove',e=>{const r=canvas.getBoundingClientRect();handleMove((e.clientX-r.left)/scale,(e.clientY-r.top)/scale);});
+canvas.addEventListener('touchmove',e=>{e.preventDefault();const r=canvas.getBoundingClientRect();handleMove((e.changedTouches[0].clientX-r.left)/scale,(e.changedTouches[0].clientY-r.top)/scale);},{passive:false});
+document.getElementById('rotbtn').addEventListener('click',()=>{
+  if(selected===null)return;
+  pieces[selected].cells=rotateCW(pieces[selected].cells);
+});
+document.getElementById('newbtn').addEventListener('click',()=>{puzzleIdx++;newPuzzle();});
+
+newPuzzle();loop();
+</script>
+</body>
+</html>
