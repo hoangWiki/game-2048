@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="theme-color" content="#0f1923"/>
+  <title>Number Drop</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0f1923;
+      display: flex; flex-direction: column; align-items: center;
+      min-height: 100vh;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      color: #fff; padding: 12px 16px 32px;
+      user-select: none; -webkit-user-select: none; overflow-x: hidden;
+    }
+    h1 {
+      font-size: clamp(22px, 6vw, 32px); font-weight: 800;
+      background: linear-gradient(90deg, #60a5fa, #a78bfa, #f472b6, #fbbf24);
+      -webkit-background-clip: text; background-clip: text;
+      -webkit-text-fill-color: transparent; margin-bottom: 10px;
+    }
+    .hud { display: flex; gap: 12px; margin-bottom: 10px; }
+    .hud-box {
+      background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.12);
+      border-radius: 10px; padding: 6px 18px; text-align: center; min-width: 76px;
+    }
+    .hud-label { font-size: 9px; text-transform: uppercase; letter-spacing: 1.5px; opacity: .55; margin-bottom: 1px; }
+    .hud-value { font-size: 20px; font-weight: 700; }
+    .layout { display: flex; gap: 10px; align-items: flex-start; }
+    canvas { border-radius: 10px; display: block; cursor: crosshair; touch-action: none; border: 1px solid rgba(255,255,255,.1); }
+    .sidebar { display: flex; flex-direction: column; gap: 8px; width: 80px; flex-shrink: 0; }
+    .side-box {
+      background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.1);
+      border-radius: 10px; padding: 8px 6px; text-align: center;
+    }
+    .side-label { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; opacity: .5; margin-bottom: 4px; }
+    .next-num { font-size: 22px; font-weight: 900; line-height: 1; }
+    .guide-row { font-size: 11px; line-height: 1.9; display: flex; align-items: center; justify-content: center; gap: 2px; }
+    .hint { margin-top: 10px; font-size: 11px; opacity: .4; text-align: center; }
+    @media (max-width: 420px) { .sidebar { display: none; } }
+  </style>
+</head>
+<body>
+<a href="index.html" style="position:fixed;top:12px;left:12px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;text-decoration:none;padding:6px 14px;border-radius:8px;font-size:13px;font-weight:600;z-index:100;">← Games</a>
+<h1>🔢 Number Drop</h1>
+<div class="hud">
+  <div class="hud-box"><div class="hud-label">Score</div><div class="hud-value" id="score">0</div></div>
+  <div class="hud-box"><div class="hud-label">Best</div><div class="hud-value" id="best">0</div></div>
+</div>
+<div class="layout">
+  <canvas id="canvas"></canvas>
+  <div class="sidebar">
+    <div class="side-box">
+      <div class="side-label">Next</div>
+      <div class="next-num" id="next-num">2</div>
+    </div>
+    <div class="side-box">
+      <div class="side-label">Guide</div>
+      <div id="guide"></div>
+    </div>
+  </div>
+</div>
+<p class="hint">Click / tap to drop • Same numbers merge!</p>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+<script>
+const NUMS = [
+  { val:2,    r:14,  color:'#60a5fa', light:'#bfdbfe', text:'#fff' },
+  { val:4,    r:19,  color:'#818cf8', light:'#c7d2fe', text:'#fff' },
+  { val:8,    r:24,  color:'#a78bfa', light:'#ddd6fe', text:'#fff' },
+  { val:16,   r:30,  color:'#c084fc', light:'#e9d5ff', text:'#fff' },
+  { val:32,   r:37,  color:'#e879f9', light:'#f5d0fe', text:'#fff' },
+  { val:64,   r:44,  color:'#f472b6', light:'#fce7f3', text:'#fff' },
+  { val:128,  r:52,  color:'#fb923c', light:'#fed7aa', text:'#fff' },
+  { val:256,  r:61,  color:'#fbbf24', light:'#fef3c7', text:'#1a1a1a' },
+  { val:512,  r:71,  color:'#a3e635', light:'#d9f99d', text:'#1a1a1a' },
+  { val:1024, r:82,  color:'#34d399', light:'#a7f3d0', text:'#fff' },
+  { val:2048, r:95,  color:'#22d3ee', light:'#a5f3fc', text:'#fff' },
+];
+
+const canvas = document.getElementById('canvas');
+const ctx    = canvas.getContext('2d');
+const GW=360, GH=540, DROP_Y=44, DANGER_Y=68;
+let scale=1;
+function resize(){
+  const a=Math.min(window.innerWidth-120,480);
+  scale=Math.min(a/GW,1.4);
+  canvas.width=GW*scale; canvas.height=GH*scale;
+  ctx.setTransform(scale,0,0,scale,0,0);
+}
+resize(); window.addEventListener('resize',resize);
+
+const{Engine,World,Bodies,Events}=Matter;
+const engine=Engine.create({gravity:{y:2}});
+const world=engine.world;
+const WALL={isStatic:true,label:'wall',friction:0.4,restitution:0.1};
+World.add(world,[
+  Bodies.rectangle(GW/2,GH+25,GW+60,50,WALL),
+  Bodies.rectangle(-25,GH/2,50,GH*2,WALL),
+  Bodies.rectangle(GW+25,GH/2,50,GH*2,WALL),
+]);
+
+let numMap=new Map(), pending=[], parts=[];
+let score=0, best=+(localStorage.getItem('nd-best')||0);
+let nextLv=rndLv(), dropX=GW/2, canDrop=true, state='playing', overTimer=0;
+
+function rndLv(){return Math.floor(Math.random()*4);}
+
+Events.on(engine,'collisionStart',e=>{
+  for(const{bodyA,bodyB}of e.pairs){
+    const a=numMap.get(bodyA.id),b=numMap.get(bodyB.id);
+    if(!a||!b||a.lv!==b.lv||a.lv>=NUMS.length-1)continue;
+    const k=Math.min(bodyA.id,bodyB.id)+','+Math.max(bodyA.id,bodyB.id);
+    if(!pending.find(p=>p.k===k))pending.push({k,idA:bodyA.id,idB:bodyB.id});
+  }
+});
+
+function processMerges(){
+  if(!pending.length)return;
+  const used=new Set();
+  for(const{idA,idB}of pending){
+    if(used.has(idA)||used.has(idB))continue;
+    const a=numMap.get(idA),b=numMap.get(idB);
+    if(!a||!b||a.lv!==b.lv)continue;
+    const mx=(a.body.position.x+b.body.position.x)/2;
+    const my=(a.body.position.y+b.body.position.y)/2;
+    const nl=a.lv+1;
+    numMap.delete(idA);numMap.delete(idB);
+    World.remove(world,a.body);World.remove(world,b.body);
+    used.add(idA);used.add(idB);
+    score+=NUMS[nl].val;
+    if(score>best){best=score;localStorage.setItem('nd-best',best);}
+    burst(mx,my,NUMS[nl].color);
+    addNum(mx,Math.max(my,DANGER_Y+NUMS[nl].r+4),nl);
+  }
+  pending=[];
+}
+
+function addNum(x,y,lv){
+  const n=NUMS[lv];
+  const body=Bodies.circle(x,y,n.r,{restitution:.25,friction:.5,frictionAir:.008,density:.002,label:'num'});
+  numMap.set(body.id,{body,lv,addedAt:Date.now()});
+  World.add(world,body);
+  return body;
+}
+
+function drop(x){
+  if(!canDrop||state!=='playing')return;
+  canDrop=false;
+  const n=NUMS[nextLv];
+  x=Math.max(n.r+4,Math.min(GW-n.r-4,x));
+  addNum(x,DROP_Y,nextLv);
+  nextLv=rndLv(); updateNext();
+  setTimeout(()=>{canDrop=true;},500);
+}
+
+function burst(x,y,color){
+  for(let i=0;i<12;i++){
+    const a=(i/12)*Math.PI*2+Math.random()*.3,s=2.5+Math.random()*3.5;
+    parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-1,r:3+Math.random()*4,color,life:1,decay:.045+Math.random()*.04});
+  }
+}
+
+function tickParts(){
+  for(let i=parts.length-1;i>=0;i--){
+    const p=parts[i];p.x+=p.vx;p.y+=p.vy;p.vy+=.25;p.life-=p.decay;
+    if(p.life<=0)parts.splice(i,1);
+  }
+}
+
+function checkOver(){
+  for(const[,{body,lv,addedAt}]of numMap){
+    if(Date.now()-addedAt>900&&body.position.y-NUMS[lv].r<DANGER_Y&&Math.abs(body.velocity.y)<2){
+      overTimer++;if(overTimer>40)state='over';return;
+    }
+  }
+  overTimer=0;
+}
+
+function rrect(x,y,w,h,r){
+  ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.arcTo(x+w,y,x+w,y+r,r);
+  ctx.lineTo(x+w,y+h-r);ctx.arcTo(x+w,y+h,x+w-r,y+h,r);
+  ctx.lineTo(x+r,y+h);ctx.arcTo(x,y+h,x,y+h-r,r);
+  ctx.lineTo(x,y+r);ctx.arcTo(x,y,x+r,y,r);ctx.closePath();
+}
+
+function drawBall(x,y,lv,alpha){
+  const n=NUMS[lv];
+  ctx.save();
+  if(alpha!=null)ctx.globalAlpha=alpha;
+  ctx.translate(x,y);
+  ctx.shadowColor=n.color;ctx.shadowBlur=12;
+  const g=ctx.createRadialGradient(-n.r*.3,-n.r*.3,n.r*.05,0,0,n.r);
+  g.addColorStop(0,n.light);g.addColorStop(1,n.color);
+  ctx.beginPath();ctx.arc(0,0,n.r,0,Math.PI*2);
+  ctx.fillStyle=g;ctx.fill();
+  ctx.shadowBlur=0;
+  ctx.strokeStyle='rgba(255,255,255,.25)';ctx.lineWidth=1.5;ctx.stroke();
+  // Number text
+  const fs=n.r>50?n.r*.7:n.r>30?n.r*.8:n.r*.9;
+  ctx.font=`bold ${fs}px system-ui`;
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillStyle=n.text;
+  ctx.shadowColor='rgba(0,0,0,.35)';ctx.shadowBlur=4;
+  ctx.fillText(n.val,0,1);
+  ctx.shadowBlur=0;
+  ctx.restore();
+}
+
+function draw(){
+  ctx.clearRect(0,0,GW,GH);
+  const bg=ctx.createLinearGradient(0,0,0,GH);
+  bg.addColorStop(0,'#0f1923');bg.addColorStop(1,'#1a2a3a');
+  ctx.fillStyle=bg;ctx.fillRect(0,0,GW,GH);
+
+  ctx.save();ctx.strokeStyle='rgba(255,80,80,.5)';ctx.lineWidth=1.5;
+  ctx.setLineDash([6,5]);
+  ctx.beginPath();ctx.moveTo(0,DANGER_Y);ctx.lineTo(GW,DANGER_Y);ctx.stroke();
+  ctx.setLineDash([]);ctx.restore();
+
+  ctx.fillStyle='rgba(255,255,255,.1)';
+  ctx.fillRect(0,DANGER_Y,3,GH-DANGER_Y);ctx.fillRect(GW-3,DANGER_Y,3,GH-DANGER_Y);
+  ctx.fillRect(0,GH-3,GW,3);
+
+  if(canDrop&&state==='playing'){
+    const n=NUMS[nextLv];
+    ctx.save();ctx.strokeStyle='rgba(255,255,255,.1)';ctx.lineWidth=1;
+    ctx.setLineDash([3,5]);
+    ctx.beginPath();ctx.moveTo(dropX,DROP_Y+n.r);ctx.lineTo(dropX,GH);ctx.stroke();
+    ctx.setLineDash([]);ctx.restore();
+  }
+
+  for(const[,{body,lv}]of numMap){
+    drawBall(body.position.x,body.position.y,lv);
+  }
+
+  if(canDrop&&state==='playing'){
+    drawBall(dropX,DROP_Y,nextLv,.55);
+  }
+
+  for(const p of parts){
+    ctx.save();ctx.globalAlpha=p.life;ctx.fillStyle=p.color;
+    ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill();ctx.restore();
+  }
+
+  if(state==='over'){
+    ctx.save();
+    ctx.fillStyle='rgba(0,0,0,.78)';ctx.fillRect(0,0,GW,GH);
+    const cx=GW/2,cy=GH/2;
+    ctx.fillStyle='#0f1923';rrect(cx-130,cy-120,260,240,18);ctx.fill();
+    ctx.strokeStyle='rgba(255,255,255,.12)';ctx.lineWidth=1;ctx.stroke();
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.font='bold 38px system-ui';ctx.fillStyle='#fff';ctx.fillText('Game Over',cx,cy-72);
+    ctx.font='18px system-ui';ctx.fillStyle='rgba(255,255,255,.7)';ctx.fillText('Score: '+score,cx,cy-36);
+    ctx.font='14px system-ui';ctx.fillStyle='rgba(255,255,255,.4)';ctx.fillText('Best: '+best,cx,cy-10);
+    const bx=cx-80,by=cy+18,bw=160,bh=46;
+    const rbg=ctx.createLinearGradient(bx,by,bx+bw,by+bh);
+    rbg.addColorStop(0,'#60a5fa');rbg.addColorStop(1,'#a78bfa');
+    ctx.fillStyle=rbg;rrect(bx,by,bw,bh,23);ctx.fill();
+    ctx.font='bold 17px system-ui';ctx.fillStyle='#0f1923';ctx.fillText('Play Again',cx,by+bh/2+1);
+    ctx.restore();
+  }
+}
+
+let last=0;
+function loop(ts){
+  const dt=Math.min(ts-last,50);last=ts;
+  processMerges();
+  Engine.update(engine,dt||16);
+  tickParts();
+  if(state==='playing')checkOver();
+  draw();
+  document.getElementById('score').textContent=score;
+  document.getElementById('best').textContent=Math.max(score,best);
+  requestAnimationFrame(loop);
+}
+
+function gx(cx){return(cx-canvas.getBoundingClientRect().left)/scale;}
+function gy(cy){return(cy-canvas.getBoundingClientRect().top)/scale;}
+
+canvas.addEventListener('mousemove',e=>{if(state==='playing')dropX=Math.max(20,Math.min(GW-20,gx(e.clientX)));});
+canvas.addEventListener('click',e=>{
+  const x=gx(e.clientX),y=gy(e.clientY);
+  if(state==='playing'){drop(x);}
+  else if(state==='over'){const cx=GW/2,cy=GH/2;if(x>cx-80&&x<cx+80&&y>cy+18&&y<cy+64)restart();}
+});
+canvas.addEventListener('touchmove',e=>{e.preventDefault();if(state==='playing')dropX=Math.max(20,Math.min(GW-20,gx(e.touches[0].clientX)));},{passive:false});
+canvas.addEventListener('touchend',e=>{
+  e.preventDefault();
+  const x=gx(e.changedTouches[0].clientX),y=gy(e.changedTouches[0].clientY);
+  if(state==='playing'){drop(x);}
+  else if(state==='over'){const cx=GW/2,cy=GH/2;if(x>cx-80&&x<cx+80&&y>cy+18&&y<cy+64)restart();}
+},{passive:false});
+
+function restart(){
+  for(const[,{body}]of numMap)World.remove(world,body);
+  numMap.clear();pending=[];parts=[];score=0;nextLv=rndLv();dropX=GW/2;
+  canDrop=true;state='playing';overTimer=0;updateNext();
+}
+
+function updateNext(){
+  document.getElementById('next-num').textContent=NUMS[nextLv].val;
+  document.getElementById('next-num').style.color=NUMS[nextLv].color;
+}
+
+// Guide
+const g=document.getElementById('guide');
+NUMS.slice(0,-1).forEach((n,i)=>{
+  const d=document.createElement('div');d.className='guide-row';
+  d.innerHTML=`<span style="color:${n.color};font-weight:700;font-size:10px">${n.val}</span><span style="opacity:.4;font-size:9px">+${n.val}</span><span style="opacity:.4;font-size:9px">→</span><span style="color:${NUMS[i+1].color};font-weight:700;font-size:10px">${NUMS[i+1].val}</span>`;
+  g.appendChild(d);
+});
+
+document.getElementById('best').textContent=best;
+updateNext();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="theme-color" content="#16101e"/>
+  <title>Bubble Merge</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #16101e;
+      display: flex; flex-direction: column; align-items: center;
+      min-height: 100vh;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      color: #fff; padding: 12px 16px 32px;
+      user-select: none; -webkit-user-select: none; overflow-x: hidden;
+    }
+    h1 {
+      font-size: clamp(22px, 6vw, 32px); font-weight: 800;
+      background: linear-gradient(90deg, #ff6b6b, #f472b6, #a78bfa, #4cc9f0);
+      -webkit-background-clip: text; background-clip: text;
+      -webkit-text-fill-color: transparent; margin-bottom: 10px;
+    }
+    .hud { display: flex; gap: 12px; margin-bottom: 10px; }
+    .hud-box {
+      background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.12);
+      border-radius: 10px; padding: 6px 18px; text-align: center; min-width: 76px;
+    }
+    .hud-label { font-size: 9px; text-transform: uppercase; letter-spacing: 1.5px; opacity: .55; margin-bottom: 1px; }
+    .hud-value { font-size: 20px; font-weight: 700; }
+    .layout { display: flex; gap: 10px; align-items: flex-start; }
+    canvas { border-radius: 10px; display: block; cursor: crosshair; touch-action: none; border: 1px solid rgba(255,255,255,.1); }
+    .sidebar { display: flex; flex-direction: column; gap: 8px; width: 80px; flex-shrink: 0; }
+    .side-box {
+      background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.1);
+      border-radius: 10px; padding: 8px 6px; text-align: center;
+    }
+    .side-label { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; opacity: .5; margin-bottom: 4px; }
+    .next-dot { width: 34px; height: 34px; border-radius: 50%; margin: 0 auto; }
+    .guide-row { font-size: 10px; line-height: 2; display: flex; align-items: center; justify-content: center; gap: 3px; }
+    .guide-dot { display: inline-block; border-radius: 50%; flex-shrink: 0; }
+    .hint { margin-top: 10px; font-size: 11px; opacity: .4; text-align: center; }
+    @media (max-width: 420px) { .sidebar { display: none; } }
+  </style>
+</head>
+<body>
+<a href="index.html" style="position:fixed;top:12px;left:12px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;text-decoration:none;padding:6px 14px;border-radius:8px;font-size:13px;font-weight:600;z-index:100;">← Games</a>
+<h1>🫧 Bubble Merge</h1>
+<div class="hud">
+  <div class="hud-box"><div class="hud-label">Score</div><div class="hud-value" id="score">0</div></div>
+  <div class="hud-box"><div class="hud-label">Best</div><div class="hud-value" id="best">0</div></div>
+</div>
+<div class="layout">
+  <canvas id="canvas"></canvas>
+  <div class="sidebar">
+    <div class="side-box">
+      <div class="side-label">Next</div>
+      <div class="next-dot" id="next-dot"></div>
+    </div>
+    <div class="side-box">
+      <div class="side-label">Rules</div>
+      <div id="guide"></div>
+    </div>
+  </div>
+</div>
+<p class="hint">Drop bubbles • Match color + size to merge!</p>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+<script>
+// 5 colors × 4 sizes → merge same color+size → bigger → POP at max size
+const COLORS = [
+  { name:'Red',    col:'#ff6b6b', light:'#fecaca', glow:'#ff6b6b' },
+  { name:'Green',  col:'#4ade80', light:'#bbf7d0', glow:'#4ade80' },
+  { name:'Blue',   col:'#60a5fa', light:'#bfdbfe', glow:'#60a5fa' },
+  { name:'Yellow', col:'#fbbf24', light:'#fef3c7', glow:'#fbbf24' },
+  { name:'Pink',   col:'#f472b6', light:'#fce7f3', glow:'#f472b6' },
+];
+const RADII  = [14, 21, 31, 44];   // size 0→3
+const SCORES = [5, 15, 40, 100];   // points per merge/pop at each size
+
+const canvas = document.getElementById('canvas');
+const ctx    = canvas.getContext('2d');
+const GW=360, GH=540, DROP_Y=44, DANGER_Y=68;
+let scale=1;
+function resize(){
+  const a=Math.min(window.innerWidth-120,480);
+  scale=Math.min(a/GW,1.4);
+  canvas.width=GW*scale;canvas.height=GH*scale;
+  ctx.setTransform(scale,0,0,scale,0,0);
+}
+resize(); window.addEventListener('resize',resize);
+
+const{Engine,World,Bodies,Events}=Matter;
+const engine=Engine.create({gravity:{y:2}});
+const world=engine.world;
+const WALL={isStatic:true,label:'wall',friction:0.4,restitution:0.15};
+World.add(world,[
+  Bodies.rectangle(GW/2,GH+25,GW+60,50,WALL),
+  Bodies.rectangle(-25,GH/2,50,GH*2,WALL),
+  Bodies.rectangle(GW+25,GH/2,50,GH*2,WALL),
+]);
+
+let bMap=new Map(), pending=[], parts=[];
+let score=0, best=+(localStorage.getItem('bm-best')||0);
+let nextColor=rndColor(), dropX=GW/2, canDrop=true, state='playing', overTimer=0;
+
+function rndColor(){return Math.floor(Math.random()*COLORS.length);}
+
+Events.on(engine,'collisionStart',e=>{
+  for(const{bodyA,bodyB}of e.pairs){
+    const a=bMap.get(bodyA.id),b=bMap.get(bodyB.id);
+    if(!a||!b||a.color!==b.color||a.size!==b.size)continue;
+    const k=Math.min(bodyA.id,bodyB.id)+','+Math.max(bodyA.id,bodyB.id);
+    if(!pending.find(p=>p.k===k))pending.push({k,idA:bodyA.id,idB:bodyB.id});
+  }
+});
+
+function processMerges(){
+  if(!pending.length)return;
+  const used=new Set();
+  for(const{idA,idB}of pending){
+    if(used.has(idA)||used.has(idB))continue;
+    const a=bMap.get(idA),b=bMap.get(idB);
+    if(!a||!b||a.color!==b.color||a.size!==b.size)continue;
+    const mx=(a.body.position.x+b.body.position.x)/2;
+    const my=(a.body.position.y+b.body.position.y)/2;
+    const color=a.color,size=a.size;
+    bMap.delete(idA);bMap.delete(idB);
+    World.remove(world,a.body);World.remove(world,b.body);
+    used.add(idA);used.add(idB);
+    score+=SCORES[size];
+    if(score>best){best=score;localStorage.setItem('bm-best',best);}
+    if(size<RADII.length-1){
+      // Merge → bigger bubble
+      burst(mx,my,COLORS[color].col,10);
+      addBubble(mx,Math.max(my,DANGER_Y+RADII[size+1]+4),color,size+1);
+    } else {
+      // POP! Maximum size
+      bigPop(mx,my,color);
+    }
+  }
+  pending=[];
+}
+
+function addBubble(x,y,color,size){
+  const r=RADII[size];
+  const body=Bodies.circle(x,y,r,{restitution:.3,friction:.45,frictionAir:.007,density:.002,label:'bubble'});
+  bMap.set(body.id,{body,color,size,addedAt:Date.now()});
+  World.add(world,body);
+  return body;
+}
+
+function drop(x){
+  if(!canDrop||state!=='playing')return;
+  canDrop=false;
+  const r=RADII[0];
+  x=Math.max(r+4,Math.min(GW-r-4,x));
+  addBubble(x,DROP_Y,nextColor,0);
+  nextColor=rndColor(); updateNext();
+  setTimeout(()=>{canDrop=true;},480);
+}
+
+function burst(x,y,color,count){
+  count=count||10;
+  for(let i=0;i<count;i++){
+    const a=(i/count)*Math.PI*2+Math.random()*.4,s=2+Math.random()*4;
+    parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-1,r:2+Math.random()*4,color,life:1,decay:.04+Math.random()*.04});
+  }
+}
+
+function bigPop(x,y,colorIdx){
+  const color=COLORS[colorIdx].col;
+  // Extra-large burst
+  for(let i=0;i<30;i++){
+    const a=Math.random()*Math.PI*2,s=3+Math.random()*8;
+    parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-2,r:4+Math.random()*8,color,life:1,decay:.025+Math.random()*.025});
+  }
+  // Secondary rainbow burst
+  const rainbow=['#ff6b6b','#ffd166','#4ade80','#4cc9f0','#a78bfa'];
+  for(let i=0;i<20;i++){
+    const a=Math.random()*Math.PI*2,s=4+Math.random()*6;
+    parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-3,r:3+Math.random()*5,
+      color:rainbow[i%5],life:1,decay:.02+Math.random()*.02});
+  }
+}
+
+function tickParts(){
+  for(let i=parts.length-1;i>=0;i--){
+    const p=parts[i];p.x+=p.vx;p.y+=p.vy;p.vy+=.25;p.life-=p.decay;
+    if(p.life<=0)parts.splice(i,1);
+  }
+}
+
+function checkOver(){
+  for(const[,{body,size,addedAt}]of bMap){
+    if(Date.now()-addedAt>900&&body.position.y-RADII[size]<DANGER_Y&&Math.abs(body.velocity.y)<2){
+      overTimer++;if(overTimer>40)state='over';return;
+    }
+  }
+  overTimer=0;
+}
+
+function drawBubble(x,y,colorIdx,size,alpha){
+  const r=RADII[size],c=COLORS[colorIdx];
+  ctx.save();
+  if(alpha!=null)ctx.globalAlpha=alpha;
+  ctx.translate(x,y);
+  ctx.shadowColor=c.glow;ctx.shadowBlur=14;
+  const g=ctx.createRadialGradient(-r*.3,-r*.35,r*.04,0,0,r);
+  g.addColorStop(0,c.light);g.addColorStop(.6,c.col);g.addColorStop(1,shadeColor(c.col,-30));
+  ctx.beginPath();ctx.arc(0,0,r,0,Math.PI*2);
+  ctx.fillStyle=g;ctx.fill();
+  ctx.shadowBlur=0;
+  ctx.strokeStyle='rgba(255,255,255,.3)';ctx.lineWidth=1.5;ctx.stroke();
+  // Shine
+  ctx.beginPath();ctx.ellipse(-r*.22,-r*.28,r*.35,r*.22,-Math.PI/6,0,Math.PI*2);
+  ctx.fillStyle='rgba(255,255,255,.35)';ctx.fill();
+  // Size dots indicator
+  for(let s=0;s<=size;s++){
+    ctx.beginPath();ctx.arc(-r*.25+s*r*.18,r*.55,r*.1,0,Math.PI*2);
+    ctx.fillStyle='rgba(255,255,255,.6)';ctx.fill();
+  }
+  ctx.restore();
+}
+
+function shadeColor(hex,pct){
+  const n=parseInt(hex.slice(1),16);
+  const r=Math.max(0,Math.min(255,((n>>16)&255)+pct));
+  const g=Math.max(0,Math.min(255,((n>>8)&255)+pct));
+  const b=Math.max(0,Math.min(255,(n&255)+pct));
+  return`#${((r<<16)|(g<<8)|b).toString(16).padStart(6,'0')}`;
+}
+
+function rrect(x,y,w,h,r){
+  ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.arcTo(x+w,y,x+w,y+r,r);
+  ctx.lineTo(x+w,y+h-r);ctx.arcTo(x+w,y+h,x+w-r,y+h,r);
+  ctx.lineTo(x+r,y+h);ctx.arcTo(x,y+h,x,y+h-r,r);
+  ctx.lineTo(x,y+r);ctx.arcTo(x,y,x+r,y,r);ctx.closePath();
+}
+
+function draw(){
+  ctx.clearRect(0,0,GW,GH);
+  const bg=ctx.createLinearGradient(0,0,0,GH);
+  bg.addColorStop(0,'#16101e');bg.addColorStop(1,'#0d0820');
+  ctx.fillStyle=bg;ctx.fillRect(0,0,GW,GH);
+
+  ctx.save();ctx.strokeStyle='rgba(255,80,80,.5)';ctx.lineWidth=1.5;
+  ctx.setLineDash([6,5]);
+  ctx.beginPath();ctx.moveTo(0,DANGER_Y);ctx.lineTo(GW,DANGER_Y);ctx.stroke();
+  ctx.setLineDash([]);ctx.restore();
+
+  ctx.fillStyle='rgba(255,255,255,.1)';
+  ctx.fillRect(0,DANGER_Y,3,GH-DANGER_Y);ctx.fillRect(GW-3,DANGER_Y,3,GH-DANGER_Y);
+  ctx.fillRect(0,GH-3,GW,3);
+
+  if(canDrop&&state==='playing'){
+    ctx.save();ctx.strokeStyle='rgba(255,255,255,.1)';ctx.lineWidth=1;
+    ctx.setLineDash([3,5]);
+    ctx.beginPath();ctx.moveTo(dropX,DROP_Y+RADII[0]);ctx.lineTo(dropX,GH);ctx.stroke();
+    ctx.setLineDash([]);ctx.restore();
+  }
+
+  for(const[,{body,color,size}]of bMap){
+    drawBubble(body.position.x,body.position.y,color,size);
+  }
+
+  if(canDrop&&state==='playing'){
+    drawBubble(dropX,DROP_Y,nextColor,0,.55);
+  }
+
+  for(const p of parts){
+    ctx.save();ctx.globalAlpha=p.life;ctx.fillStyle=p.color;
+    ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill();ctx.restore();
+  }
+
+  if(state==='over'){
+    ctx.save();
+    ctx.fillStyle='rgba(0,0,0,.78)';ctx.fillRect(0,0,GW,GH);
+    const cx=GW/2,cy=GH/2;
+    ctx.fillStyle='#16101e';rrect(cx-130,cy-120,260,240,18);ctx.fill();
+    ctx.strokeStyle='rgba(255,255,255,.12)';ctx.lineWidth=1;ctx.stroke();
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.font='bold 38px system-ui';ctx.fillStyle='#fff';ctx.fillText('Game Over',cx,cy-72);
+    ctx.font='18px system-ui';ctx.fillStyle='rgba(255,255,255,.7)';ctx.fillText('Score: '+score,cx,cy-36);
+    ctx.font='14px system-ui';ctx.fillStyle='rgba(255,255,255,.4)';ctx.fillText('Best: '+best,cx,cy-10);
+    const bx=cx-80,by=cy+18,bw=160,bh=46;
+    const rbg=ctx.createLinearGradient(bx,by,bx+bw,by+bh);
+    rbg.addColorStop(0,'#f472b6');rbg.addColorStop(1,'#a78bfa');
+    ctx.fillStyle=rbg;rrect(bx,by,bw,bh,23);ctx.fill();
+    ctx.font='bold 17px system-ui';ctx.fillStyle='#fff';ctx.fillText('Play Again',cx,by+bh/2+1);
+    ctx.restore();
+  }
+}
+
+let last=0;
+function loop(ts){
+  const dt=Math.min(ts-last,50);last=ts;
+  processMerges();
+  Engine.update(engine,dt||16);
+  tickParts();
+  if(state==='playing')checkOver();
+  draw();
+  document.getElementById('score').textContent=score;
+  document.getElementById('best').textContent=Math.max(score,best);
+  requestAnimationFrame(loop);
+}
+
+function gx(cx){return(cx-canvas.getBoundingClientRect().left)/scale;}
+function gy_(cy){return(cy-canvas.getBoundingClientRect().top)/scale;}
+
+canvas.addEventListener('mousemove',e=>{if(state==='playing')dropX=Math.max(20,Math.min(GW-20,gx(e.clientX)));});
+canvas.addEventListener('click',e=>{
+  const x=gx(e.clientX),y=gy_(e.clientY);
+  if(state==='playing'){drop(x);}
+  else if(state==='over'){const cx=GW/2,cy=GH/2;if(x>cx-80&&x<cx+80&&y>cy+18&&y<cy+64)restart();}
+});
+canvas.addEventListener('touchmove',e=>{e.preventDefault();if(state==='playing')dropX=Math.max(20,Math.min(GW-20,gx(e.touches[0].clientX)));},{passive:false});
+canvas.addEventListener('touchend',e=>{
+  e.preventDefault();
+  const x=gx(e.changedTouches[0].clientX),y=gy_(e.changedTouches[0].clientY);
+  if(state==='playing'){drop(x);}
+  else if(state==='over'){const cx=GW/2,cy=GH/2;if(x>cx-80&&x<cx+80&&y>cy+18&&y<cy+64)restart();}
+},{passive:false});
+
+function restart(){
+  for(const[,{body}]of bMap)World.remove(world,body);
+  bMap.clear();pending=[];parts=[];score=0;nextColor=rndColor();dropX=GW/2;
+  canDrop=true;state='playing';overTimer=0;updateNext();
+}
+
+function updateNext(){
+  const d=document.getElementById('next-dot');
+  d.style.background=COLORS[nextColor].col;
+  d.style.boxShadow=`0 0 10px ${COLORS[nextColor].glow}`;
+}
+
+// Guide sidebar
+const g=document.getElementById('guide');
+COLORS.forEach(c=>{
+  const d=document.createElement('div');d.className='guide-row';
+  d.innerHTML=`<span class="guide-dot" style="width:10px;height:10px;background:${c.col}"></span>`+
+    `<span style="opacity:.4;font-size:9px">→→→💥</span>`;
+  g.appendChild(d);
+});
+
+document.getElementById('best').textContent=best;
+updateNext();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
