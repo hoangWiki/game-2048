@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#faf8ef" />
   <title>2048</title>
+  <script src="auth.js"></script>
+  <script src="leaderboard.js"></script>
   <style>
     *, *::before, *::after {
       box-sizing: border-box;
@@ -211,6 +213,29 @@
       padding: 12px 28px;
     }
 
+    /* ── Score banner (post-game) ── */
+    #score-banner {
+      display: none;
+      background: #f3ede6;
+      border-radius: 8px;
+      padding: 10px 16px;
+      margin-bottom: 10px;
+      width: 100%;
+      max-width: 480px;
+      text-align: center;
+      font-size: 13px;
+      color: #776e65;
+      font-weight: 600;
+    }
+    #score-banner .rank-txt { color: #8f7a66; }
+    #score-banner .share-btn {
+      background: #8f7a66; color: #fff; border: none;
+      border-radius: 4px; padding: 5px 12px; font-size: 12px;
+      font-weight: 700; cursor: pointer; margin-left: 10px;
+      font-family: inherit; letter-spacing: 0.3px;
+    }
+    #score-banner .share-btn:hover { background: #7f6a56; }
+
     /* ── Instructions ── */
     .instructions {
       margin-top: 12px;
@@ -284,6 +309,7 @@
     </div>
   </div>
 
+  <div id="score-banner"></div>
   <div class="dpad" id="dpad">
     <button class="dpad-btn" data-dir="up">↑</button>
     <button class="dpad-btn" data-dir="left">←</button>
@@ -321,6 +347,7 @@
       won = false;
       keepGoing = false;
       $overlay.classList.remove('show');
+      document.getElementById('score-banner').style.display = 'none';
       spawnTile();
       spawnTile();
       render([], []);
@@ -439,6 +466,7 @@
 
       if (won && !keepGoing) {
         setTimeout(() => {
+          saveAndShare(score);
           $overlayMsg.textContent = '🎉 You Win!';
           $btnOverlay.textContent = 'Keep Going';
           $btnOverlay._action = () => {
@@ -455,6 +483,7 @@
       if (noMovesLeft()) {
         setTimeout(() => {
           gameOver = true;
+          saveAndShare(score);
           $overlayMsg.textContent = 'Game Over!';
           $btnOverlay.textContent = 'Try Again';
           $btnOverlay._action = startGame;
@@ -498,6 +527,18 @@
     function syncScore() {
       $score.textContent = score;
       $best.textContent  = best;
+    }
+
+    function saveAndShare(finalScore) {
+      const banner = document.getElementById('score-banner');
+      if (!window.lb) { banner.style.display = 'none'; return; }
+      const rank = window.lb.save('2048', finalScore);
+      const rankTxt = rank ? ` &nbsp;·&nbsp; <span class="rank-txt">🏆 Rank #${rank}</span>` : '';
+      const user = window.auth?.user?.name || '';
+      const shareText = `${user ? user + ' scored ' : 'I scored '}${finalScore.toLocaleString()} in 2048!`;
+      banner.innerHTML = `Score: <strong>${finalScore.toLocaleString()}</strong>${rankTxt}` +
+        `<button id="share-btn" class="share-btn" onclick="window.shareScore('${shareText.replace(/'/g,"\\'")}')">🔗 Share</button>`;
+      banner.style.display = 'block';
     }
 
     // ── Keyboard ──────────────────────────────────────────────────────────────

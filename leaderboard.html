@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="theme-color" content="#0f0f1a"/>
+<title>Leaderboard · Arcade</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:#0f0f1a;min-height:100vh;display:flex;flex-direction:column;align-items:center;
+  font-family:'Segoe UI',system-ui,sans-serif;color:#fff;padding:12px 16px 48px;
+  user-select:none;-webkit-user-select:none}
+a.back{position:fixed;top:12px;left:12px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);
+  color:#fff;text-decoration:none;padding:6px 14px;border-radius:8px;font-size:13px;font-weight:600;z-index:100}
+h1{font-size:clamp(22px,6vw,30px);font-weight:900;letter-spacing:-0.5px;
+  background:linear-gradient(135deg,#fbbf24,#f59e0b);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  margin:8px 0 4px;padding-top:44px}
+.note{font-size:12px;opacity:.35;margin-bottom:20px}
+.tabs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;width:100%;max-width:600px;justify-content:center}
+.tab{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:20px;
+  padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;font-family:inherit;color:#fff}
+.tab:hover{background:rgba(255,255,255,.12)}
+.tab.active{background:rgba(251,191,36,.2);border-color:rgba(251,191,36,.5);color:#fbbf24}
+.board{width:100%;max-width:600px}
+.game-section{margin-bottom:32px}
+.game-header{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.game-icon{font-size:24px}
+.game-name{font-size:18px;font-weight:800}
+.no-scores{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;
+  padding:20px;text-align:center;font-size:14px;opacity:.45}
+.entry{display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:12px;margin-bottom:6px;
+  background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);transition:background .15s}
+.entry.me{background:rgba(251,191,36,.08);border-color:rgba(251,191,36,.25)}
+.entry:hover{background:rgba(255,255,255,.07)}
+.rank{font-size:18px;font-weight:900;min-width:28px;text-align:center;flex-shrink:0}
+.rank.r1{color:#fbbf24}
+.rank.r2{color:#94a3b8}
+.rank.r3{color:#b45309}
+.rank.other{font-size:15px;color:rgba(255,255,255,.4)}
+.avatar{width:34px;height:34px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,.15);flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.1);font-size:14px;font-weight:700}
+.entry.me .avatar{border-color:rgba(251,191,36,.5)}
+.entry-info{flex:1;min-width:0}
+.entry-name{font-size:14px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.entry-meta{font-size:11px;opacity:.4;margin-top:2px}
+.entry-score{font-size:18px;font-weight:900;flex-shrink:0}
+.entry.me .entry-score{color:#fbbf24}
+.me-badge{font-size:10px;background:rgba(251,191,36,.2);color:#fbbf24;border-radius:6px;
+  padding:2px 6px;margin-left:6px;font-weight:700}
+.empty-state{text-align:center;padding:48px 20px;opacity:.4}
+.empty-state .big{font-size:48px;margin-bottom:12px}
+.empty-state p{font-size:14px;line-height:1.7}
+.share-row{display:flex;justify-content:center;margin-top:24px}
+.share-btn{background:rgba(251,191,36,.15);border:1px solid rgba(251,191,36,.3);color:#fbbf24;
+  border-radius:10px;padding:9px 20px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
+.share-btn:hover{background:rgba(251,191,36,.25)}
+</style>
+</head>
+<body>
+<a class="back" href="index.html">← Arcade</a>
+<h1>🏆 Leaderboard</h1>
+<p class="note">Scores saved on this device</p>
+<div class="tabs" id="tabs"></div>
+<div class="board" id="board"></div>
+
+<script src="auth.js"></script>
+<script src="leaderboard.js"></script>
+<script>
+const GAMES = [
+  { key:'2048',     icon:'🎯', label:'2048',         href:'2048.html' },
+  { key:'fruit',    icon:'🍉', label:'Fruit Merge',   href:'fruit-merge.html' },
+  { key:'numbers',  icon:'🔢', label:'Number Drop',   href:'number-drop.html' },
+  { key:'bubbles',  icon:'🫧', label:'Bubble Merge',  href:'bubble-merge.html' },
+  { key:'queens',   icon:'👑', label:'Queens',        href:'queens.html' },
+  { key:'wend',     icon:'⬛', label:'Wend',          href:'wend.html' },
+  { key:'tango',    icon:'☀️', label:'Tango',         href:'tango.html' },
+  { key:'sudoku',   icon:'🔢', label:'Mini Sudoku',   href:'mini-sudoku.html' },
+  { key:'pinpoint', icon:'📍', label:'Pinpoint',      href:'pinpoint.html' },
+];
+
+const MEDALS = ['🥇','🥈','🥉'];
+
+function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function fmt(ts){ return new Date(ts).toLocaleDateString(undefined,{month:'short',day:'numeric'}); }
+
+function initials(name){ return (name||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase(); }
+
+let activeGame = null;
+
+function render() {
+  const uid = window.auth?.user?.id || window.lb?._anon?.();
+  const withScores = GAMES.filter(g => lb.top(g.key,1).length > 0);
+  const allGames = withScores.length > 0 ? withScores : [];
+
+  // Tabs
+  const tabs = document.getElementById('tabs');
+  if (allGames.length > 1) {
+    tabs.innerHTML = `<button class="tab ${activeGame===null?'active':''}" onclick="setGame(null)">All</button>` +
+      allGames.map(g => `<button class="tab ${activeGame===g.key?'active':''}" onclick="setGame('${g.key}')">${g.icon} ${esc(g.label)}</button>`).join('');
+  } else {
+    tabs.innerHTML = '';
+  }
+
+  // Board
+  const board = document.getElementById('board');
+  const gamesToShow = activeGame ? GAMES.filter(g=>g.key===activeGame) : allGames;
+
+  if (gamesToShow.length === 0) {
+    board.innerHTML = `
+      <div class="empty-state">
+        <div class="big">🏆</div>
+        <p>No scores yet.<br>Play any game to appear here!</p>
+      </div>`;
+    return;
+  }
+
+  board.innerHTML = gamesToShow.map(g => {
+    const scores = lb.top(g.key, 10);
+    if (scores.length === 0) return '';
+    const rows = scores.map((e, i) => {
+      const isMe = e.uid === uid;
+      const rank = i + 1;
+      const medal = rank <= 3 ? MEDALS[rank-1] : rank;
+      const rankCls = rank <= 3 ? `r${rank}` : 'other';
+      const avatarHtml = e.pic
+        ? `<img class="avatar" src="${esc(e.pic)}" onerror="this.outerHTML='<div class=\\'avatar\\'>${esc(initials(e.name))}</div>'" alt="">`
+        : `<div class="avatar">${esc(initials(e.name))}</div>`;
+      return `
+        <div class="entry ${isMe?'me':''}">
+          <div class="rank ${rankCls}">${medal}</div>
+          ${avatarHtml}
+          <div class="entry-info">
+            <div class="entry-name">${esc(e.name)}${isMe?'<span class="me-badge">YOU</span>':''}</div>
+            <div class="entry-meta">${fmt(e.ts)}</div>
+          </div>
+          <div class="entry-score">${e.score.toLocaleString()}</div>
+        </div>`;
+    }).join('');
+    return `
+      <div class="game-section">
+        <div class="game-header">
+          <span class="game-icon">${g.icon}</span>
+          <span class="game-name">${esc(g.label)}</span>
+        </div>
+        ${rows}
+        <div style="text-align:right;margin-top:8px">
+          <a href="${g.href}" style="font-size:12px;opacity:.4;color:#fff;text-decoration:none">▶ Play ${esc(g.label)}</a>
+        </div>
+      </div>`;
+  }).join('');
+
+  // Share my best
+  const myBests = GAMES.filter(g=>lb.myBest(g.key)).map(g=>`${g.icon}${g.label}: ${lb.myBest(g.key).score.toLocaleString()}`);
+  if (myBests.length > 0) {
+    board.insertAdjacentHTML('beforeend', `
+      <div class="share-row">
+        <button class="share-btn" id="share-btn" onclick="shareMyScores()">🔗 Share my scores</button>
+      </div>`);
+  }
+}
+
+function setGame(key) {
+  activeGame = key;
+  render();
+}
+
+function shareMyScores() {
+  const myBests = GAMES.filter(g=>lb.myBest(g.key)).map(g=>`${g.icon} ${g.label}: ${lb.myBest(g.key).score.toLocaleString()}`);
+  const name = window.auth?.user?.name || 'I';
+  window.shareScore?.(`${name} scored:\n${myBests.join('\n')}`);
+}
+
+window.auth.addEventListener('change', render);
+render();
+</script>
+</body>
+</html>

@@ -16,8 +16,59 @@
       justify-content: center;
       font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
       color: #fff;
-      padding: 24px 16px 40px;
+      padding: 12px 16px 40px;
     }
+
+    /* ── App bar ── */
+    .appbar {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      width: 100%;
+      max-width: 800px;
+      gap: 8px;
+      min-height: 44px;
+      margin-bottom: 4px;
+    }
+    .abar-btn {
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.15);
+      color: rgba(255,255,255,.8);
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      font-family: inherit;
+      transition: background .15s;
+      white-space: nowrap;
+    }
+    .abar-btn:hover { background: rgba(255,255,255,.16); }
+    .abar-btn.primary {
+      background: rgba(52,211,153,.18);
+      border-color: rgba(52,211,153,.4);
+      color: #34d399;
+    }
+    .abar-btn.primary:hover { background: rgba(52,211,153,.3); }
+    .abar-avatar {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid rgba(52,211,153,.45);
+      flex-shrink: 0;
+    }
+    .abar-name {
+      font-size: 13px;
+      font-weight: 600;
+      opacity: .85;
+      max-width: 110px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* ── Hub ── */
     h1 {
       font-size: clamp(28px, 8vw, 48px);
       font-weight: 900;
@@ -63,15 +114,11 @@
     .card.retro:hover  { border-color: rgba(251,191,36,0.5);  box-shadow: 0 20px 40px rgba(251,191,36,0.15); }
     .card.stack:hover  { border-color: rgba(167,139,250,0.5); box-shadow: 0 20px 40px rgba(167,139,250,0.15); }
     .card.gem:hover    { border-color: rgba(244,114,182,0.5); box-shadow: 0 20px 40px rgba(244,114,182,0.15); }
-    .card.sort:hover   { border-color: rgba(74,222,128,0.5);  box-shadow: 0 20px 40px rgba(74,222,128,0.15); }
-    .card.flap:hover   { border-color: rgba(255,209,102,0.5); box-shadow: 0 20px 40px rgba(255,209,102,0.15); }
     .card.queen:hover  { border-color: rgba(167,139,250,0.5); box-shadow: 0 20px 40px rgba(167,139,250,0.15); }
     .card.wend:hover   { border-color: rgba(34,211,238,0.5);  box-shadow: 0 20px 40px rgba(34,211,238,0.15); }
     .card.tango:hover  { border-color: rgba(245,158,11,0.5);  box-shadow: 0 20px 40px rgba(245,158,11,0.15); }
     .card.sudoku:hover { border-color: rgba(99,102,241,0.5);  box-shadow: 0 20px 40px rgba(99,102,241,0.15); }
     .card.pinpt:hover  { border-color: rgba(251,146,60,0.5);  box-shadow: 0 20px 40px rgba(251,146,60,0.15); }
-    .card.zip:hover    { border-color: rgba(52,211,153,0.5);  box-shadow: 0 20px 40px rgba(52,211,153,0.15); }
-    .card.patch:hover  { border-color: rgba(251,113,133,0.5); box-shadow: 0 20px 40px rgba(251,113,133,0.15); }
 
     .card-icon { font-size: 46px; line-height: 1; }
     .card-title { font-size: 20px; font-weight: 800; letter-spacing: -0.3px; }
@@ -80,15 +127,11 @@
     .card.retro .card-title { color: #fbbf24; }
     .card.stack .card-title { color: #a78bfa; }
     .card.gem   .card-title { color: #f472b6; }
-    .card.sort  .card-title { color: #4ade80; }
-    .card.flap  .card-title { color: #ffd166; }
     .card.queen .card-title { color: #a78bfa; }
     .card.wend  .card-title { color: #22d3ee; }
     .card.tango .card-title { color: #f59e0b; }
     .card.sudoku .card-title { color: #818cf8; }
     .card.pinpt .card-title { color: #fb923c; }
-    .card.zip   .card-title { color: #34d399; }
-    .card.patch .card-title { color: #fb7185; }
 
     .card-desc { font-size: 12px; opacity: 0.52; line-height: 1.6; }
     .card-tag {
@@ -100,15 +143,11 @@
     .card.retro .card-tag { background: rgba(251,191,36,0.15);  color: #fbbf24; }
     .card.stack .card-tag { background: rgba(167,139,250,0.15); color: #a78bfa; }
     .card.gem   .card-tag { background: rgba(244,114,182,0.15); color: #f472b6; }
-    .card.sort  .card-tag { background: rgba(74,222,128,0.15);  color: #4ade80; }
-    .card.flap  .card-tag { background: rgba(255,209,102,0.15); color: #ffd166; }
     .card.queen .card-tag { background: rgba(167,139,250,0.15); color: #a78bfa; }
     .card.wend  .card-tag { background: rgba(34,211,238,0.15);  color: #22d3ee; }
     .card.tango .card-tag { background: rgba(245,158,11,0.15);  color: #f59e0b; }
     .card.sudoku .card-tag { background: rgba(99,102,241,0.15); color: #818cf8; }
     .card.pinpt .card-tag { background: rgba(251,146,60,0.15);  color: #fb923c; }
-    .card.zip   .card-tag { background: rgba(52,211,153,0.15);  color: #34d399; }
-    .card.patch .card-tag { background: rgba(251,113,133,0.15); color: #fb7185; }
 
     .play-btn {
       margin-top: 6px; padding: 9px 0;
@@ -119,19 +158,93 @@
     .card.retro .play-btn { background: rgba(251,191,36,0.15);  color: #fbbf24; }
     .card.stack .play-btn { background: rgba(167,139,250,0.15); color: #a78bfa; }
     .card.gem   .play-btn { background: rgba(244,114,182,0.15); color: #f472b6; }
-    .card.sort  .play-btn { background: rgba(74,222,128,0.15);  color: #4ade80; }
-    .card.flap  .play-btn { background: rgba(255,209,102,0.15); color: #ffd166; }
     .card.queen .play-btn { background: rgba(167,139,250,0.15); color: #a78bfa; }
     .card.wend  .play-btn { background: rgba(34,211,238,0.15);  color: #22d3ee; }
     .card.tango .play-btn { background: rgba(245,158,11,0.15);  color: #f59e0b; }
     .card.sudoku .play-btn { background: rgba(99,102,241,0.15); color: #818cf8; }
     .card.pinpt .play-btn { background: rgba(251,146,60,0.15);  color: #fb923c; }
-    .card.zip   .play-btn { background: rgba(52,211,153,0.15);  color: #34d399; }
-    .card.patch .play-btn { background: rgba(251,113,133,0.15); color: #fb7185; }
     .card:hover .play-btn { filter: brightness(1.3); }
+
+    /* ── Onboarding overlay ── */
+    #onboard {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.72);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      z-index: 300;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .ob-card {
+      background: #131929;
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 24px;
+      padding: 32px 28px 28px;
+      max-width: 380px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 32px 64px rgba(0,0,0,.5);
+    }
+    .ob-icon { font-size: 48px; margin-bottom: 10px; }
+    .ob-title { font-size: 22px; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 6px; }
+    .ob-sub { font-size: 13px; opacity: .5; margin-bottom: 20px; line-height: 1.6; }
+    .ob-perks {
+      display: flex; flex-direction: column; gap: 8px;
+      margin-bottom: 22px; text-align: left;
+      background: rgba(255,255,255,.04);
+      border-radius: 12px; padding: 14px 16px;
+    }
+    .ob-perk { display: flex; align-items: center; gap: 10px; font-size: 13px; opacity: .75; }
+    .ob-perk span { font-size: 17px; flex-shrink: 0; }
+    .oauth-btn {
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      width: 100%; padding: 12px; border-radius: 12px;
+      font-size: 14px; font-weight: 700;
+      cursor: pointer; border: none; font-family: inherit;
+      margin-bottom: 10px; transition: opacity .15s, filter .15s;
+    }
+    .oauth-btn:hover { filter: brightness(1.08); }
+    .oauth-btn:active { opacity: .85; }
+    .oauth-btn.google { background: #fff; color: #333; }
+    .oauth-btn.facebook { background: #1877f2; color: #fff; }
+    .ob-divider {
+      display: flex; align-items: center; gap: 10px;
+      margin: 14px 0 10px; color: rgba(255,255,255,.3); font-size: 12px;
+    }
+    .ob-divider::before, .ob-divider::after {
+      content: ''; flex: 1; height: 1px; background: rgba(255,255,255,.12);
+    }
+    .quick-row { display: flex; gap: 8px; }
+    .quick-input {
+      flex: 1; background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.18);
+      color: #fff; border-radius: 10px; padding: 10px 12px;
+      font-size: 14px; font-family: inherit; outline: none;
+    }
+    .quick-input::placeholder { opacity: .38; }
+    .quick-input:focus { border-color: rgba(52,211,153,.5); }
+    .quick-go {
+      background: rgba(52,211,153,.18);
+      border: 1px solid rgba(52,211,153,.4);
+      color: #34d399; border-radius: 10px;
+      padding: 10px 14px; font-size: 13px;
+      font-weight: 700; cursor: pointer; font-family: inherit; white-space: nowrap;
+    }
+    .quick-go:hover { background: rgba(52,211,153,.3); }
+    .ob-skip {
+      display: block; margin-top: 16px; font-size: 12px;
+      opacity: .38; cursor: pointer; background: none;
+      border: none; color: #fff; font-family: inherit;
+    }
+    .ob-skip:hover { opacity: .6; }
   </style>
 </head>
 <body>
+  <!-- App bar -->
+  <div class="appbar" id="appbar"></div>
+
   <h1>🎮 Arcade</h1>
   <p class="sub">Choose a game to play</p>
 
@@ -207,15 +320,117 @@
       <div class="card-tag">WORD · LINKEDIN</div>
       <div class="play-btn">▶ Play Now</div>
     </a>
-
-    <a class="card zip" href="zip.html">
-      <div class="card-icon">🔗</div>
-      <div class="card-title">Zip</div>
-      <div class="card-desc">Draw a path through every cell, hitting the numbered circles in order.</div>
-      <div class="card-tag">PUZZLE · LINKEDIN</div>
-      <div class="play-btn">▶ Play Now</div>
-    </a>
-
   </div>
+
+  <!-- Onboarding overlay -->
+  <div id="onboard">
+    <div class="ob-card">
+      <div class="ob-icon">🏆</div>
+      <div class="ob-title">Level up your game.</div>
+      <div class="ob-sub">Sign in to save scores, climb the leaderboard,<br>and challenge friends.</div>
+      <div class="ob-perks">
+        <div class="ob-perk"><span>💾</span> Scores saved across sessions</div>
+        <div class="ob-perk"><span>📊</span> See your rank on the leaderboard</div>
+        <div class="ob-perk"><span>🔗</span> Share wins with one tap</div>
+      </div>
+      <button class="oauth-btn google" id="ob-google">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908C16.658 14.014 17.64 11.707 17.64 9.2z"/>
+          <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/>
+          <path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957C.347 6.173 0 7.548 0 9s.348 2.827.957 4.042l3.007-2.332z"/>
+          <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z"/>
+        </svg>
+        Sign in with Google
+      </button>
+      <button class="oauth-btn facebook" id="ob-facebook">
+        <svg width="18" height="18" viewBox="0 0 24 24">
+          <path fill="white" d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+        </svg>
+        Continue with Facebook
+      </button>
+      <div class="ob-divider">or use a display name</div>
+      <div class="quick-row">
+        <input class="quick-input" id="ob-name" placeholder="Your name…" maxlength="25" autocomplete="nickname"/>
+        <button class="quick-go" id="ob-go">Let's go!</button>
+      </div>
+      <button class="ob-skip" id="ob-skip">Skip for now →</button>
+    </div>
+  </div>
+
+  <script src="auth.js"></script>
+  <script src="leaderboard.js"></script>
+  <script>
+  function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+  function updateAppBar() {
+    const bar = document.getElementById('appbar');
+    const u = window.auth?.user;
+    if (u) {
+      const avatarHtml = u.pic
+        ? `<img class="abar-avatar" src="${esc(u.pic)}" onerror="this.style.display='none'" alt="">`
+        : '';
+      bar.innerHTML =
+        `<a href="leaderboard.html" class="abar-btn">🏆 Leaderboard</a>` +
+        avatarHtml +
+        `<span class="abar-name">${esc(u.name)}</span>` +
+        `<button class="abar-btn" id="signout-btn">Sign out</button>`;
+      document.getElementById('signout-btn').addEventListener('click', () => window.auth.signOut());
+    } else {
+      bar.innerHTML =
+        `<a href="leaderboard.html" class="abar-btn">🏆 Scores</a>` +
+        `<button class="abar-btn primary" id="signin-btn">Sign in</button>`;
+      document.getElementById('signin-btn').addEventListener('click', showOnboard);
+    }
+  }
+
+  function showOnboard() {
+    document.getElementById('onboard').style.display = 'flex';
+    document.getElementById('ob-name').value = '';
+  }
+
+  function closeOnboard() {
+    document.getElementById('onboard').style.display = 'none';
+    localStorage.setItem('_aob', '1');
+  }
+
+  // Wire onboarding buttons
+  document.getElementById('ob-google').addEventListener('click', () => {
+    window.auth.signInGoogle();
+  });
+  document.getElementById('ob-facebook').addEventListener('click', () => {
+    window.auth.signInFacebook();
+  });
+  document.getElementById('ob-go').addEventListener('click', () => {
+    const name = document.getElementById('ob-name').value.trim();
+    if (!name) { document.getElementById('ob-name').focus(); return; }
+    window.auth.signInQuick(name);
+    closeOnboard();
+  });
+  document.getElementById('ob-name').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('ob-go').click();
+  });
+  document.getElementById('ob-skip').addEventListener('click', closeOnboard);
+  document.getElementById('onboard').addEventListener('click', e => {
+    if (e.target === document.getElementById('onboard')) closeOnboard();
+  });
+
+  // On auth change: close overlay, refresh bar
+  window.auth.addEventListener('change', u => {
+    updateAppBar();
+    if (u.detail) closeOnboard();
+  });
+  // If no OAuth configured, open quick name input
+  window.auth.addEventListener('quick', () => {
+    showOnboard();
+    setTimeout(() => document.getElementById('ob-name').focus(), 200);
+  });
+
+  updateAppBar();
+
+  // Show onboarding after a short delay on first visit (if not logged in)
+  if (!window.auth.user && !localStorage.getItem('_aob')) {
+    setTimeout(showOnboard, 1000);
+  }
+  </script>
 </body>
 </html>
