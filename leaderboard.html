@@ -90,7 +90,7 @@ function initials(name){ return (name||'?').split(' ').map(w=>w[0]).join('').sli
 let activeGame = null;
 
 function render() {
-  const uid = window.auth?.user?.id || window.lb?._anon?.();
+  const uid = window.auth?.user?.id || localStorage.getItem('_ala') || '';
   const withScores = GAMES.filter(g => lb.top(g.key,1).length > 0);
   const allGames = withScores.length > 0 ? withScores : [];
 

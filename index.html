@@ -239,6 +239,11 @@
       border: none; color: #fff; font-family: inherit;
     }
     .ob-skip:hover { opacity: .6; }
+    @keyframes ob-shake {
+      0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-6px)} 40%,80%{transform:translateX(6px)}
+    }
+    .quick-input.shake { animation: ob-shake .35s ease; }
+    .ob-name-hint { font-size:12px; color:#f87171; margin-top:6px; min-height:16px; }
   </style>
 </head>
 <body>
@@ -353,6 +358,7 @@
         <input class="quick-input" id="ob-name" placeholder="Your name…" maxlength="25" autocomplete="nickname"/>
         <button class="quick-go" id="ob-go">Let's go!</button>
       </div>
+      <div class="ob-name-hint" id="ob-hint"></div>
       <button class="ob-skip" id="ob-skip">Skip for now →</button>
     </div>
   </div>
@@ -386,6 +392,11 @@
   function showOnboard() {
     document.getElementById('onboard').style.display = 'flex';
     document.getElementById('ob-name').value = '';
+    document.getElementById('ob-hint').textContent = '';
+    // Focus name input if OAuth not configured; otherwise let user choose
+    if (!window.auth.isGoogleConfigured && !window.auth.isFacebookConfigured) {
+      setTimeout(() => document.getElementById('ob-name').focus(), 100);
+    }
   }
 
   function closeOnboard() {
@@ -393,16 +404,37 @@
     localStorage.setItem('_aob', '1');
   }
 
+  function shakeNameInput(msg) {
+    const inp = document.getElementById('ob-name');
+    const hint = document.getElementById('ob-hint');
+    inp.classList.remove('shake');
+    void inp.offsetWidth; // reflow to restart animation
+    inp.classList.add('shake');
+    if (msg) hint.textContent = msg;
+    inp.focus();
+    setTimeout(() => inp.classList.remove('shake'), 400);
+  }
+
+  // Adapt overlay based on which OAuth providers are configured
+  function adaptOverlay() {
+    const hasGoogle = window.auth.isGoogleConfigured;
+    const hasFB = window.auth.isFacebookConfigured;
+    if (!hasGoogle) document.getElementById('ob-google').style.display = 'none';
+    if (!hasFB) document.getElementById('ob-facebook').style.display = 'none';
+    if (!hasGoogle && !hasFB) {
+      document.querySelector('.ob-divider').style.display = 'none';
+      document.querySelector('.ob-title').textContent = 'Pick a name to play.';
+      document.querySelector('.ob-sub').textContent = 'Your scores and rank will be saved under your name.';
+    }
+  }
+
   // Wire onboarding buttons
-  document.getElementById('ob-google').addEventListener('click', () => {
-    window.auth.signInGoogle();
-  });
-  document.getElementById('ob-facebook').addEventListener('click', () => {
-    window.auth.signInFacebook();
-  });
+  document.getElementById('ob-google').addEventListener('click', () => window.auth.signInGoogle());
+  document.getElementById('ob-facebook').addEventListener('click', () => window.auth.signInFacebook());
+
   document.getElementById('ob-go').addEventListener('click', () => {
     const name = document.getElementById('ob-name').value.trim();
-    if (!name) { document.getElementById('ob-name').focus(); return; }
+    if (!name) { shakeNameInput('Enter a name to continue'); return; }
     window.auth.signInQuick(name);
     closeOnboard();
   });
@@ -414,20 +446,21 @@
     if (e.target === document.getElementById('onboard')) closeOnboard();
   });
 
-  // On auth change: close overlay, refresh bar
-  window.auth.addEventListener('change', u => {
+  // Auth event handlers
+  window.auth.addEventListener('change', ev => {
     updateAppBar();
-    if (u.detail) closeOnboard();
+    if (ev.detail) closeOnboard();
   });
-  // If no OAuth configured, open quick name input
+  // 'quick' fires when OAuth button is clicked but provider not configured
   window.auth.addEventListener('quick', () => {
+    if (!document.getElementById('ob-google').style.display) adaptOverlay();
     showOnboard();
-    setTimeout(() => document.getElementById('ob-name').focus(), 200);
   });
 
+  adaptOverlay();
   updateAppBar();
 
-  // Show onboarding after a short delay on first visit (if not logged in)
+  // Show onboarding on first visit (if not logged in)
   if (!window.auth.user && !localStorage.getItem('_aob')) {
     setTimeout(showOnboard, 1000);
   }

@@ -74,6 +74,9 @@ class AuthManager extends EventTarget {
     this._set(null);
     if (GOOGLE_CLIENT_ID && window.google) google.accounts.id.disableAutoSelect();
   }
+
+  get isGoogleConfigured() { return !!GOOGLE_CLIENT_ID; }
+  get isFacebookConfigured() { return !!FB_APP_ID; }
 }
 
 window.auth = new AuthManager();
