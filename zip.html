@@ -15,10 +15,11 @@ a.back{position:fixed;top:12px;left:12px;background:rgba(255,255,255,.1);border:
 h1{font-size:clamp(20px,5vw,26px);font-weight:800;
   background:linear-gradient(90deg,#34d399,#10b981);
   -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;margin:2px 0 8px}
-.topbar{display:flex;align-items:center;gap:10px;margin-bottom:8px;width:100%;max-width:440px;justify-content:space-between}
+.topbar{display:flex;align-items:center;gap:8px;margin-bottom:8px;width:100%;max-width:440px;justify-content:space-between}
 .badge{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:20px;padding:4px 14px;font-size:13px;font-weight:600}
+.btns{display:flex;gap:6px}
 .rbtn{background:rgba(52,211,153,.15);border:1px solid rgba(52,211,153,.3);color:#34d399;
-  border-radius:8px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit}
+  border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit}
 .rbtn:hover{background:rgba(52,211,153,.25)}
 canvas{border-radius:16px;display:block;touch-action:none;border:1px solid rgba(255,255,255,.07)}
 .hint{margin-top:10px;font-size:12px;opacity:.38;text-align:center}
@@ -28,27 +29,31 @@ canvas{border-radius:16px;display:block;touch-action:none;border:1px solid rgba(
 <a class="back" href="index.html">← Games</a>
 <h1>🔗 Zip</h1>
 <div class="topbar">
-  <span class="badge" id="badge">5×5</span>
-  <button class="rbtn" id="newbtn">New Puzzle</button>
+  <span class="badge" id="badge">0 / 25</span>
+  <div class="btns">
+    <button class="rbtn" id="resetbtn">↺ Reset</button>
+    <button class="rbtn" id="newbtn">New</button>
+  </div>
 </div>
 <canvas id="canvas"></canvas>
-<p class="hint">Draw a path through all cells · Hit numbered circles in order</p>
+<p class="hint">Tap ❶ to start · Draw through every cell · Hit circles in order</p>
 <script>
 const canvas=document.getElementById('canvas');
 const ctx=canvas.getContext('2d');
-const N=5,CW=380,CH=440;
+const N=5,CW=380,CH=420;
 let scale=1;
 function resize(){
-  const a=Math.min(window.innerWidth-24,460);
+  const a=Math.min(window.innerWidth-24,440);
   scale=a/CW;canvas.width=CW*scale;canvas.height=CH*scale;
   ctx.setTransform(scale,0,0,scale,0,0);
 }
 resize();window.addEventListener('resize',resize);
 
-const CS=Math.floor((CW-20)/N);
-const OX=Math.floor((CW-N*CS)/2),OY=16;
+const CS=Math.floor((CW-16)/N); // ~72px cells
+const OX=Math.floor((CW-N*CS)/2);
+const OY=10;
 
-let correctPath,waypoints,path,nextWp,won,winAnim=0,errCell,errT=0;
+let correctPath,waypoints,path,nextWp,won,winAnim=0,flash,flashT=0,flashOk=false;
 
 function snakePath(){
   const p=[];
@@ -59,172 +64,246 @@ function snakePath(){
   return p;
 }
 
-function randomHamilton(){
+// Always start from (0,0) so player knows where to begin
+function genHamilton(){
   const vis=Array.from({length:N},()=>new Uint8Array(N));
-  const path=[];
-  const sr=0|Math.random()*N,sc=0|Math.random()*N;
-  vis[sr][sc]=1;path.push([sr,sc]);
+  const p=[];
+  vis[0][0]=1;p.push([0,0]);
   let calls=0;
-  const D=[[0,1],[0,-1],[1,0],[-1,0]];
+  const D=[[0,1],[1,0],[0,-1],[-1,0]];
   function dfs(){
-    if(++calls>60000)return false;
-    if(path.length===N*N)return true;
-    const[r,c]=path[path.length-1];
+    if(++calls>80000)return false;
+    if(p.length===N*N)return true;
+    const[r,c]=p[p.length-1];
     const dirs=[...D];
     for(let i=3;i>0;i--){const j=0|Math.random()*(i+1);[dirs[i],dirs[j]]=[dirs[j],dirs[i]];}
     for(const[dr,dc]of dirs){
       const nr=r+dr,nc=c+dc;
       if(nr>=0&&nr<N&&nc>=0&&nc<N&&!vis[nr][nc]){
-        vis[nr][nc]=1;path.push([nr,nc]);
+        vis[nr][nc]=1;p.push([nr,nc]);
         if(dfs())return true;
-        path.pop();vis[nr][nc]=0;
+        p.pop();vis[nr][nc]=0;
       }
     }
     return false;
   }
-  return dfs()&&path.length===N*N?path:snakePath();
+  return dfs()&&p.length===N*N?p:snakePath();
 }
 
 function newPuzzle(){
-  correctPath=randomHamilton();
-  // Waypoints at ~equal spacing + start + end
-  const total=correctPath.length;
-  const wp=[];
-  const positions=[0,Math.floor(total*.2),Math.floor(total*.4),Math.floor(total*.6),Math.floor(total*.8),total-1];
-  for(const i of positions){
-    const[r,c]=correctPath[i];
-    wp.push({r,c,n:wp.length+1,pathIdx:i});
-  }
-  waypoints=wp;
-  path=[[...correctPath[0]]];
-  nextWp=2; // wp 1 is already at path start
-  won=false;winAnim=0;errCell=null;
-  const total_cells=N*N;
-  document.getElementById('badge').textContent=`${N}×${N} · 0/${total_cells}`;
+  correctPath=genHamilton();
+  // 5 waypoints spread across the path (including start and end)
+  const total=correctPath.length; // 25
+  const idxs=[0,Math.round(total*.22),Math.round(total*.44),Math.round(total*.66),Math.round(total*.88),total-1];
+  waypoints=idxs.map((pi,i)=>{const[r,c]=correctPath[pi];return{r,c,n:i+1,pi};});
+  resetPath();
+  document.getElementById('badge').textContent=`0 / ${N*N}`;
+}
+
+function resetPath(){
+  path=[];nextWp=1;won=false;winAnim=0;flash=null;flashT=0;
+  document.getElementById('badge').textContent=`0 / ${N*N}`;
 }
 
 function wpAt(r,c){return waypoints.find(w=>w.r===r&&w.c===c)||null;}
-function inPath(r,c){return path.some(([pr,pc])=>pr===r&&pc===c);}
+function inPath(r,c){return path.some(p=>p[0]===r&&p[1]===c);}
+function isAdjacent(r1,c1,r2,c2){return Math.abs(r1-r2)+Math.abs(c1-c2)===1;}
+
+function doFlash(r,c,ok){flash=[r,c];flashT=Date.now();flashOk=ok;}
 
 function handleTap(gx,gy){
-  if(won)return;
-  const c=Math.floor((gx-OX)/CS),r=Math.floor((gy-OY)/CS);
-  if(r<0||r>=N||c<0||c>=N)return;
+  if(won){newPuzzle();return;}
+  const tc=Math.floor((gx-OX)/CS),tr=Math.floor((gy-OY)/CS);
+  if(tr<0||tr>=N||tc<0||tc>=N)return;
 
-  const last=path[path.length-1];
-  // Tap on last cell = undo
-  if(last[0]===r&&last[1]===c){
-    if(path.length>1){
+  // Tap last cell in path → undo one step
+  if(path.length>0){
+    const[lr,lc]=path[path.length-1];
+    if(lr===tr&&lc===tc){
       const removed=path.pop();
       const wp=wpAt(removed[0],removed[1]);
-      if(wp&&wp.n===nextWp-1&&nextWp>2)nextWp--;
+      if(wp&&nextWp>wp.n)nextWp=wp.n;
+      updateBadge();return;
     }
-    updateBadge();return;
   }
 
-  // Must be adjacent and not already in path
-  if(Math.abs(last[0]-r)>1||Math.abs(last[1]-c)>1||(last[0]===r&&last[1]===c))return;
-  if(Math.abs(last[0]-r)+Math.abs(last[1]-c)!==1)return;
-  if(inPath(r,c)){errCell=[r,c];errT=Date.now();return;}
+  // If path is empty, must start at waypoint 1 (always (0,0))
+  if(path.length===0){
+    const wp=wpAt(tr,tc);
+    if(wp&&wp.n===1){
+      path.push([tr,tc]);nextWp=2;
+      doFlash(tr,tc,true);updateBadge();
+    } else {
+      doFlash(tr,tc,false);
+    }
+    return;
+  }
 
-  // If this cell is a waypoint, must be the next expected one
-  const wp=wpAt(r,c);
+  const[lr,lc]=path[path.length-1];
+  // Must be adjacent to current tip
+  if(!isAdjacent(lr,lc,tr,tc)){doFlash(tr,tc,false);return;}
+  // Can't revisit
+  if(inPath(tr,tc)){doFlash(tr,tc,false);return;}
+
+  // If this cell is a waypoint, must be the correct next one
+  const wp=wpAt(tr,tc);
   if(wp){
-    if(wp.n!==nextWp){errCell=[r,c];errT=Date.now();return;}
+    if(wp.n!==nextWp){doFlash(tr,tc,false);return;}
     nextWp++;
   }
 
-  path.push([r,c]);
+  path.push([tr,tc]);
+  doFlash(tr,tc,true);
   updateBadge();
 
-  // Check win: covered all cells and all waypoints hit
+  // Win: all cells covered + all waypoints hit
   if(path.length===N*N&&nextWp>waypoints.length){
     won=true;
   }
 }
 
 function updateBadge(){
-  document.getElementById('badge').textContent=`${N}×${N} · ${path.length}/${N*N}`;
+  document.getElementById('badge').textContent=`${path.length} / ${N*N}`;
 }
+
+// Draw helpers
+function cellCX(c){return OX+c*CS+CS/2;}
+function cellCY(r){return OY+r*CS+CS/2;}
 
 function draw(){
   ctx.fillStyle='#0f0f1a';ctx.fillRect(0,0,CW,CH);
-  const inErr=errCell&&Date.now()-errT<500;
+  const t=Date.now();
+  const flashAge=t-flashT;
+  const showFlash=flashAge<350;
 
-  // Cell backgrounds
-  for(let r=0;r<N;r++)for(let c=0;c<N;c++){
-    const x=OX+c*CS,y=OY+r*CS;
-    const isInPath=inPath(r,c);
-    const isLast=path.length&&path[path.length-1][0]===r&&path[path.length-1][1]===c;
-    const isErrC=inErr&&errCell[0]===r&&errCell[1]===c;
-    ctx.fillStyle=isErrC?'rgba(255,80,80,.25)':isLast?'rgba(52,211,153,.25)':isInPath?'rgba(52,211,153,.1)':'rgba(255,255,255,.03)';
-    ctx.fillRect(x+1,y+1,CS-2,CS-2);
-    ctx.strokeStyle=isLast?'rgba(52,211,153,.6)':'rgba(255,255,255,.1)';
-    ctx.lineWidth=1;ctx.strokeRect(x+.5,y+.5,CS-1,CS-1);
+  // Cell backgrounds + grid
+  for(let r=0;r<N;r++){
+    for(let c=0;c<N;c++){
+      const x=OX+c*CS,y=OY+r*CS;
+      const ip=inPath(r,c);
+      const isLast=path.length>0&&path[path.length-1][0]===r&&path[path.length-1][1]===c;
+      const isFlash=showFlash&&flash&&flash[0]===r&&flash[1]===c;
+      const isStart=waypoints.length>0&&waypoints[0].r===r&&waypoints[0].c===c;
+
+      // Cell fill
+      if(isFlash){
+        ctx.fillStyle=flashOk?'rgba(52,211,153,.35)':'rgba(255,80,80,.35)';
+      } else if(isLast){
+        ctx.fillStyle='rgba(52,211,153,.28)';
+      } else if(ip){
+        ctx.fillStyle='rgba(52,211,153,.10)';
+      } else if(path.length===0&&isStart){
+        // Pulse "start here" hint
+        const pulse=.5+.4*Math.sin(t*.005);
+        ctx.fillStyle=`rgba(52,211,153,${pulse*.25})`;
+      } else {
+        ctx.fillStyle='rgba(255,255,255,.03)';
+      }
+      ctx.fillRect(x+1,y+1,CS-2,CS-2);
+
+      // Cell border
+      ctx.strokeStyle=isLast?'rgba(52,211,153,.5)':'rgba(255,255,255,.1)';
+      ctx.lineWidth=1;ctx.strokeRect(x+.5,y+.5,CS-1,CS-1);
+    }
   }
 
-  // Path lines
+  // Outer border
+  ctx.strokeStyle='rgba(52,211,153,.3)';ctx.lineWidth=2;
+  ctx.strokeRect(OX,OY,N*CS,N*CS);
+
+  // Path lines (draw behind waypoints)
   if(path.length>1){
-    ctx.strokeStyle='rgba(52,211,153,.7)';ctx.lineWidth=4;
+    ctx.save();
+    ctx.strokeStyle='rgba(52,211,153,.75)';ctx.lineWidth=5;
     ctx.lineCap='round';ctx.lineJoin='round';
     ctx.beginPath();
-    const[r0,c0]=path[0];ctx.moveTo(OX+c0*CS+CS/2,OY+r0*CS+CS/2);
+    ctx.moveTo(cellCX(path[0][1]),cellCY(path[0][0]));
     for(let i=1;i<path.length;i++){
-      const[r,c]=path[i];ctx.lineTo(OX+c*CS+CS/2,OY+r*CS+CS/2);
+      ctx.lineTo(cellCX(path[i][1]),cellCY(path[i][0]));
     }
     ctx.stroke();
+    ctx.restore();
   }
 
-  // Waypoints
+  // Waypoint circles
+  const WR=CS*.30;
   for(const wp of waypoints){
-    const x=OX+wp.c*CS+CS/2,y=OY+wp.r*CS+CS/2;
-    const isHit=inPath(wp.r,wp.c);
+    const x=cellCX(wp.c),y=cellCY(wp.r);
+    const hit=inPath(wp.r,wp.c);
     const isNext=wp.n===nextWp;
-    const R=CS*.28;
-    ctx.beginPath();ctx.arc(x,y,R,0,Math.PI*2);
-    ctx.fillStyle=isHit?'#34d399':isNext?'rgba(52,211,153,.4)':'rgba(255,255,255,.15)';
+    const isFirst=wp.n===1;
+
+    // Circle background
+    ctx.beginPath();ctx.arc(x,y,WR,0,Math.PI*2);
+    if(hit){
+      ctx.fillStyle='#34d399';
+    } else if(isNext&&path.length>0){
+      ctx.fillStyle='rgba(52,211,153,.3)';
+    } else if(isFirst&&path.length===0){
+      // Pulse the start circle
+      const pulse=.5+.45*Math.sin(t*.005);
+      ctx.fillStyle=`rgba(52,211,153,${.3+pulse*.2})`;
+    } else {
+      ctx.fillStyle='rgba(255,255,255,.18)';
+    }
     ctx.fill();
-    if(isNext){ctx.strokeStyle='#34d399';ctx.lineWidth=2;ctx.stroke();}
+
+    // Ring
+    ctx.strokeStyle=hit?'#34d399':(isNext||isFirst&&path.length===0)?'#34d399':'rgba(255,255,255,.4)';
+    ctx.lineWidth=isNext||(isFirst&&path.length===0)?2:1.5;ctx.stroke();
+
+    // Number
     ctx.textAlign='center';ctx.textBaseline='middle';
-    ctx.font=`bold ${Math.min(R*.9,14)}px system-ui`;
-    ctx.fillStyle=isHit?'#0f1a14':'#fff';
+    ctx.font=`bold ${Math.min(WR*.85,15)}px system-ui`;
+    ctx.fillStyle=hit?'#052e16':'#fff';
     ctx.fillText(wp.n,x,y+1);
+
+    // "START" label under waypoint 1 when not started
+    if(isFirst&&path.length===0){
+      ctx.font='bold 9px system-ui';ctx.fillStyle='rgba(52,211,153,.8)';
+      ctx.fillText('START',x,y+WR+8);
+    }
   }
 
-  // Progress arc on last cell
+  // Progress ring on path tip
   if(path.length>0&&!won){
     const[lr,lc]=path[path.length-1];
-    const lx=OX+lc*CS+CS/2,ly=OY+lr*CS+CS/2;
+    const lx=cellCX(lc),ly=cellCY(lr);
     const pct=path.length/(N*N);
-    ctx.beginPath();ctx.arc(lx,ly,CS*.32,-Math.PI/2,-Math.PI/2+Math.PI*2*pct);
-    ctx.strokeStyle='#34d399';ctx.lineWidth=2.5;ctx.lineCap='round';ctx.stroke();
+    ctx.beginPath();ctx.arc(lx,ly,CS*.36,-Math.PI/2,-Math.PI/2+Math.PI*2*pct);
+    ctx.strokeStyle='#34d399';ctx.lineWidth=3;ctx.lineCap='round';ctx.stroke();
   }
 
   // Win overlay
   if(won){
-    winAnim=Math.min(winAnim+.04,1);
+    winAnim=Math.min(winAnim+.045,1);
     ctx.fillStyle=`rgba(0,0,0,${.6*winAnim})`;ctx.fillRect(0,0,CW,CH);
-    if(winAnim>.4){
-      const a=(winAnim-.4)/.6;ctx.globalAlpha=a;
+    if(winAnim>.35){
+      const a=(winAnim-.35)/.65;ctx.globalAlpha=a;
       ctx.textAlign='center';ctx.textBaseline='middle';
-      ctx.font='bold 38px system-ui';ctx.shadowColor='#34d399';ctx.shadowBlur=25;
-      ctx.fillStyle='#fff';ctx.fillText('🔗 Complete!',CW/2,CH/2-20);
-      ctx.shadowBlur=0;ctx.font='14px system-ui';ctx.fillStyle='rgba(255,255,255,.7)';
-      ctx.fillText('Tap for new puzzle',CW/2,CH/2+12);ctx.globalAlpha=1;
+      ctx.font='bold 38px system-ui';
+      ctx.shadowColor='#34d399';ctx.shadowBlur=28;
+      ctx.fillStyle='#fff';ctx.fillText('🔗 Complete!',CW/2,CH/2-22);
+      ctx.shadowBlur=0;
+      ctx.font='15px system-ui';ctx.fillStyle='rgba(255,255,255,.7)';
+      ctx.fillText('Tap for new puzzle',CW/2,CH/2+12);
+      ctx.globalAlpha=1;
     }
   }
 }
 
 function loop(){draw();requestAnimationFrame(loop);}
+
 canvas.addEventListener('click',e=>{
-  if(won){newPuzzle();return;}
-  const rect=canvas.getBoundingClientRect();handleTap((e.clientX-rect.left)/scale,(e.clientY-rect.top)/scale);
+  const rect=canvas.getBoundingClientRect();
+  handleTap((e.clientX-rect.left)/scale,(e.clientY-rect.top)/scale);
 });
 canvas.addEventListener('touchend',e=>{
   e.preventDefault();
-  if(won){newPuzzle();return;}
-  const rect=canvas.getBoundingClientRect();handleTap((e.changedTouches[0].clientX-rect.left)/scale,(e.changedTouches[0].clientY-rect.top)/scale);
+  const rect=canvas.getBoundingClientRect();
+  handleTap((e.changedTouches[0].clientX-rect.left)/scale,(e.changedTouches[0].clientY-rect.top)/scale);
 },{passive:false});
+document.getElementById('resetbtn').addEventListener('click',resetPath);
 document.getElementById('newbtn').addEventListener('click',newPuzzle);
 
 newPuzzle();loop();
